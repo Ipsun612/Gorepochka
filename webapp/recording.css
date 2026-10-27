@@ -1,0 +1,218 @@
+/* Shared tap-to-record composer and circular video notes. */
+.composer-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+.composer-controls .composer-row,
+.voice-composer {
+  flex: 1;
+  min-width: 0;
+}
+.record-toggle {
+  position: relative;
+  color: var(--blue-deep);
+  background: var(--blue-soft);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.record-toggle svg {
+  position: absolute;
+  transition:
+    opacity 0.2s ease,
+    transform 0.24s ease;
+}
+.record-camera-icon {
+  opacity: 0;
+  transform: rotate(-60deg) scale(0.5);
+}
+.is-video-mode .record-mic-icon {
+  opacity: 0;
+  transform: rotate(60deg) scale(0.5);
+}
+.is-video-mode .record-camera-icon {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+.record-toggle.is-holding {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 0 0 7px #4f8cff26;
+}
+.record-toggle.is-holding:hover {
+  background: var(--blue);
+}
+.voice-help {
+  min-height: 24px;
+}
+#voiceCancelHint {
+  color: var(--pink-deep);
+  white-space: nowrap;
+}
+.voice-composer.is-cancelling .voice-track {
+  background: var(--pink-soft);
+}
+.record-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #29364b66;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.app.is-capturing .composer {
+  position: relative;
+  z-index: 7;
+  overflow: visible;
+}
+.record-stage {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(125px + max(var(--safe-bottom), var(--content-bottom)));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  pointer-events: none;
+}
+.record-circle {
+  width: min(72vw, 380px, calc(var(--app-height) - 270px));
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: 50%;
+  background: conic-gradient(var(--pink) calc(var(--progress, 0) * 1%), #ffffffb3 0);
+  box-shadow: 0 10px 50px #29364b33;
+  overflow: hidden;
+}
+.record-live {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: #29364b;
+}
+.record-live.is-selfie {
+  transform: scaleX(-1);
+}
+.camera-flip {
+  pointer-events: auto;
+  background: #fff;
+  color: var(--blue-deep);
+  box-shadow: 0 3px 12px #29364b26;
+}
+.bubble.has-video-note,
+.msg.user .bubble.has-video-note {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.bubble.has-video-note::before {
+  display: none;
+}
+.bubble.has-video-note .meta {
+  margin: 0;
+  padding: 0 6px 2px;
+}
+.bubble-video-note {
+  width: 260px;
+  max-width: 100%;
+}
+.note-ring {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 4px;
+  background: conic-gradient(var(--blue) calc(var(--progress, 0) * 1%), #ffffffc9 0);
+  touch-action: none;
+}
+.bubble-video-note .note-disc {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #29364b;
+}
+.note-play {
+  position: absolute;
+  inset: 16%;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: transparent;
+  text-shadow: 0 1px 10px #000;
+  font-size: 32px;
+  transition: opacity 0.15s;
+}
+.note-ring.is-playing .note-play {
+  opacity: 0;
+}
+.note-ring.is-playing:hover .note-play,
+.note-play:focus-visible {
+  opacity: 1;
+}
+.note-mute {
+  position: absolute;
+  left: 17%;
+  bottom: 13%;
+  z-index: 2;
+  padding: 6px 9px;
+  min-height: 36px;
+  border: 1px solid #ffffff55;
+  border-radius: 18px;
+  color: white;
+  background: #29364bbf;
+  font-size: 11px;
+}
+.note-time {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 12px;
+  background: #29364b99;
+  color: white;
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.note-seek {
+  height: 24px;
+}
+.bubble-video-note .video-status {
+  margin: 0;
+  padding: 2px 6px;
+}
+.bubble-video-note .video-retry {
+  margin: 4px 6px;
+}
+@media (max-height: 520px) {
+  .record-stage {
+    bottom: 100px;
+    gap: 4px;
+    flex-direction: row;
+  }
+  .record-circle {
+    width: min(40vw, calc(var(--app-height) - 160px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record-toggle,
+  .record-toggle svg,
+  .note-play {
+    transition: none;
+  }
+}

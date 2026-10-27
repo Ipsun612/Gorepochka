@@ -1,0 +1,103 @@
+/* Lorebook uses the same compact, accessible profile cards and messenger palette. */
+.lore-entry {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin: 12px 0;
+  padding: 14px;
+  background: #f8faff;
+}
+.lore-entry legend {
+  float: none;
+  width: auto;
+  color: var(--ink);
+  padding: 0 6px;
+  margin: 0;
+}
+.lore-entry summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: list-item;
+  align-content: center;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.lore-entry summary:focus-visible {
+  outline: 3px solid var(--blue-deep);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.lore-badge {
+  color: var(--blue-deep);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.lore-keywords {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.lore-keyword {
+  max-width: 100%;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.lore-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.65;
+  margin-bottom: 0;
+}
+.lore-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d7e1f0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+  max-height: 380px;
+}
+.lore-key-input {
+  min-height: 70px;
+}
+.lore-title-input {
+  min-height: 44px;
+}
+.lore-input[aria-invalid='true'] {
+  border-color: #b63150;
+}
+.lore-constant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.lore-constant input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--blue-deep);
+}
+.lore-remove {
+  color: #9b2548;
+}
+.lore-entry:disabled {
+  opacity: 0.65;
+}

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7faff" />
+  <meta name="description" content="GorCOgramm — розово-голубой мессенджер для разговоров с Горепочкой." />
+  <title>GorCOgramm — Горепочка</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./profile.css" />
+  <link rel="stylesheet" href="./lorebook.css" />
+  <link rel="stylesheet" href="./recording.css" />
+</head>
+<body>
+  <div class="app" id="appRoot">
+    <div class="chat-screen" id="chatScreen">
+    <header class="header">
+      <button class="avatar bot-profile-entry" id="botAvatar" type="button" title="Профиль Горепочки" aria-label="Профиль Горепочки" aria-controls="characterScreen"><span aria-hidden="true">Г</span></button>
+      <div class="title-wrap">
+        <span class="brand">GorCOgramm</span>
+        <h1 class="title" id="botTitle">Горепочка</h1>
+        <p class="subtitle"><span class="dot" id="statusDot" aria-hidden="true"></span><span id="statusText" role="status">Подключение…</span></p>
+      </div>
+      <button class="icon-btn" id="lorebookBtn" type="button" title="Лорбук" aria-label="Лорбук" aria-controls="lorebookScreen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lorebookIconGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5fa2"/><stop offset="1" stop-color="#4f8cff"/></linearGradient></defs><g stroke="url(#lorebookIconGradient)"><path d="M5 3h14v18H6a3 3 0 0 1 0-6h13M5 3v12M6 18h13"/><circle cx="12" cy="8.5" r="3.5"/><ellipse cx="12" cy="8.5" rx="1.5" ry="3.5"/><path d="M8.5 8.5h7"/></g></svg>
+      </button>
+      <button class="profile-entry icon-btn" id="profileBtn" type="button" title="Мой профиль" aria-label="Мой профиль" aria-controls="profileScreen">
+        <span id="profileButtonAvatar" aria-hidden="true">Я</span>
+      </button>
+      <button class="icon-btn" id="chatMenuBtn" type="button" title="Действия с чатом" aria-label="Действия с чатом" aria-haspopup="menu" aria-expanded="false" aria-controls="chatMenu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+      </button>
+    </header>
+
+    <nav class="chatbar" aria-label="Диалоги">
+      <div class="chat-tabs" id="chatTabs"></div>
+      <button class="chat-add icon-btn" id="addChatBtn" type="button" title="Новый диалог" aria-label="Новый диалог">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </nav>
+
+    <div class="chat-menu hidden" id="chatMenu" role="menu" aria-label="Действия с чатом">
+      <button class="chat-menu-item" id="menuRenameBtn" role="menuitem" type="button">Переименовать</button>
+      <button class="chat-menu-item" id="newChatBtn" role="menuitem" type="button">Очистить историю</button>
+      <button class="chat-menu-item" id="modelBtn" role="menuitem" type="button">О модели</button>
+      <button class="chat-menu-item danger" id="menuDeleteBtn" role="menuitem" type="button">Удалить диалог</button>
+    </div>
+
+    <div class="conversation">
+      <p class="archive-notice hidden" id="archiveNotice" role="status">Архив старого диалога: сообщения сохранены только для чтения. Создайте новый диалог, чтобы продолжить.</p>
+      <main class="chat" id="chat" aria-label="Переписка с Горепочкой" tabindex="0">
+        <section class="welcome" id="welcomeCard">
+          <h2>Приветики</h2>
+          <p>Я Горепочка. Рассказывай, как проходит твой день,<br class="desktop-break" /> или присылай что-нибудь интересное.</p>
+          <div class="chips">
+            <button class="chip" type="button" data-suggest="Привет! Как у тебя день?">Привет, как ты?</button>
+            <button class="chip" type="button" data-suggest="Давай поболтаем. Предложи тему для разговора!">О чём поговорим?</button>
+          </div>
+          <p class="hint">Нажмите на микрофон, чтобы записать. Дважды — смена голосового и видео.</p>
+        </section>
+      </main>
+      <div class="typing hidden" id="typing" role="status"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><em>Горепочка печатает…</em></div>
+      <button class="latest-btn icon-btn hidden" id="latestBtn" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-6-6 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <footer class="composer">
+      <div class="attach-preview hidden" id="attachPreview">
+        <img class="attach-thumb" id="attachThumb" alt="Прикреплённое изображение" />
+        <div class="attach-info"><span class="attach-name" id="attachName">Изображение</span><span class="attach-size" id="attachSize"></span></div>
+        <button class="attach-remove" id="attachRemove" type="button" aria-label="Убрать изображение">×</button>
+      </div>
+      <div class="attach-preview hidden" id="filePreview">
+        <span class="file-label" id="fileIcon" aria-hidden="true">TXT</span>
+        <div class="attach-info"><span class="attach-name" id="fileName">Файл</span><span class="attach-size" id="fileSize"></span></div>
+        <button class="attach-remove" id="fileRemove" type="button" aria-label="Убрать файл">×</button>
+      </div>
+      <div class="attach-preview video-preview hidden" id="videoPreview">
+        <video id="videoPlayer" class="video-preview-player" controls playsinline preload="metadata" aria-label="Предпросмотр видео"></video>
+        <div class="attach-info"><span class="attach-name" id="videoName">Видео</span><span class="attach-size" id="videoSize"></span></div>
+        <button class="attach-remove" id="videoRemove" type="button" aria-label="Убрать видео">×</button>
+      </div>
+      <button class="video-action hidden" id="cancelSend" type="button">Отменить отправку</button>
+      <div class="composer-controls">
+      <div class="composer-row" id="textComposer">
+        <button class="attach-btn icon-btn" id="attachBtn" type="button" title="Прикрепить фото, видео или текстовый файл" aria-label="Прикрепить фото, видео или текстовый файл">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12 6.5-6.5a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7-7L12 3m-6 12 8-8a1.2 1.2 0 0 1 1.7 1.7L8 16.4"/></svg>
+        </button>
+        <textarea id="input" rows="1" maxlength="4000" placeholder="Сообщение…" aria-label="Сообщение Горепочке" autocomplete="off"></textarea>
+        <button id="sendBtn" class="send-btn icon-btn" type="button" aria-label="Отправить сообщение" title="Отправить сообщение">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 7-7 7 7M12 5v15"/></svg>
+        </button>
+      </div>
+      <section class="voice-composer hidden" id="voiceComposer" aria-label="Запись сообщения">
+        <div class="voice-record-row">
+          <button class="icon-btn voice-delete" id="voiceDelete" type="button" aria-label="Удалить запись и вернуться к тексту" title="Удалить запись">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>
+          </button>
+          <div class="voice-track"><span class="voice-record-dot" aria-hidden="true"></span><div class="voice-waveform" id="voiceWaveform" aria-hidden="true"></div><span class="voice-time" id="voiceTime">0:00</span></div>
+          <button class="icon-btn voice-pause hidden" id="voicePause" type="button" aria-label="Прослушать запись">▶</button>
+          <button class="send-btn icon-btn hidden" id="voiceSend" type="button" aria-label="Отправить запись" title="Отправить запись">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 7-7 7 7M12 5v15"/></svg>
+          </button>
+        </div>
+        <input class="voice-seek hidden" id="voicePreviewSeek" type="range" min="0" max="100" step="0.1" value="0" aria-label="Позиция прослушивания записи" />
+        <div class="voice-help"><span id="voiceStatus" role="status" aria-live="polite"></span><span id="voiceCancelHint">Нажмите ещё раз — готово</span></div>
+        <audio id="voicePreview" preload="metadata"></audio>
+      </section>
+      <button id="voiceBtn" class="icon-btn voice-mic record-toggle" type="button" aria-label="Голосовое: нажмите для записи, дважды — видео" title="Нажмите для записи · дважды для смены режима">
+        <svg class="record-mic-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>
+        <svg class="record-camera-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="7"/><circle cx="12" cy="12" r="4"/></svg>
+      </button>
+      </div>
+    </footer>
+    <div class="record-shade hidden" id="recordingShade" aria-hidden="true"></div>
+    <section class="record-stage hidden" id="videoNoteStage" aria-label="Предпросмотр видеосообщения">
+      <div class="record-circle" id="videoNoteCircle">
+        <video id="videoNoteLive" class="record-live" autoplay muted playsinline aria-label="Изображение с камеры"></video>
+        <video id="videoNoteDraft" class="record-live hidden" playsinline preload="metadata" aria-label="Предпросмотр записанного видеосообщения"></video>
+      </div>
+      <button class="icon-btn camera-flip hidden" id="cameraFlip" type="button" aria-label="Переключить переднюю и заднюю камеры" title="Переключить камеру">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/></svg>
+      </button>
+    </section>
+    <!-- No accept filter: uncommon supported video formats must remain selectable. -->
+    <input type="file" id="attachInput" hidden />
+    <div class="sr-only" id="messageAnnouncement" role="status" aria-live="polite" aria-atomic="true"></div>
+    </div>
+
+    <section class="profile-screen hidden" id="profileScreen" aria-labelledby="profileTitle">
+      <header class="header profile-header">
+        <button class="icon-btn" id="profileBack" type="button" aria-label="Назад к переписке" title="Назад к переписке">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        </button>
+        <h1 id="profileTitle" tabindex="-1">Мой профиль</h1>
+        <button class="profile-save" id="profileSave" type="button" disabled>Сохранить</button>
+      </header>
+      <main class="profile-scroll">
+        <div class="profile-hero">
+          <div class="avatar profile-avatar" id="profileAvatar" aria-hidden="true">Я</div>
+          <h2 id="profileName">Мой профиль</h2>
+          <p id="profileUsername"></p>
+        </div>
+        <p class="profile-status" id="profileStatus" role="status" aria-live="polite">Загрузка профиля…</p>
+        <p class="profile-error hidden" id="profileError" role="alert"></p>
+        <button class="profile-link hidden" id="profileReload" type="button">Загрузить актуальный профиль</button>
+        <section class="profile-card" aria-labelledby="telegramDetailsTitle">
+          <h2 id="telegramDetailsTitle">Данные Telegram</h2>
+          <dl class="profile-details">
+            <div><dt>Имя</dt><dd id="profileTelegramName">—</dd></div>
+            <div><dt>Имя пользователя</dt><dd id="profileTelegramUsername">—</dd></div>
+          </dl>
+          <p class="profile-hint">Эти данные доступны только для чтения. Чтобы изменить имя, @username или фото, откройте настройки Telegram.</p>
+          <button class="profile-link" id="profileSync" type="button">Обновить данные из Telegram</button>
+        </section>
+        <form id="profileForm" novalidate>
+          <fieldset class="profile-card" id="profileFields" disabled>
+            <legend>Личные данные</legend>
+            <label class="profile-label" id="birthdayLabel">Дата рождения <span>необязательно</span></label>
+            <div class="birthday-fields" role="group" aria-labelledby="birthdayLabel" aria-describedby="birthdayHint">
+              <label>День<input id="profileDay" type="number" inputmode="numeric" min="1" max="31" placeholder="ДД" autocomplete="bday-day" /></label>
+              <label>Месяц<select id="profileMonth" autocomplete="bday-month">
+                <option value="">Месяц</option><option value="1">Январь</option><option value="2">Февраль</option><option value="3">Март</option><option value="4">Апрель</option><option value="5">Май</option><option value="6">Июнь</option><option value="7">Июль</option><option value="8">Август</option><option value="9">Сентябрь</option><option value="10">Октябрь</option><option value="11">Ноябрь</option><option value="12">Декабрь</option>
+              </select></label>
+              <label>Год<input id="profileYear" type="number" inputmode="numeric" min="1900" placeholder="ГГГГ" autocomplete="bday-year" /></label>
+            </div>
+            <p class="profile-hint" id="birthdayHint">Год можно не указывать. Дата хранится в профиле и не передаётся Горепочке.</p>
+            <button class="profile-link" id="profileClearBirthday" type="button">Убрать дату рождения</button>
+          </fieldset>
+          <fieldset class="profile-card" id="profileBioFields" disabled>
+            <legend>О себе для Горепочки</legend>
+            <label class="sr-only" for="profileBio">Биография для Горепочки</label>
+            <textarea id="profileBio" rows="6" placeholder="Например: люблю инди-игры, учусь играть на гитаре, обожаю котиков…" aria-describedby="profilePrivacy profileCounter" spellcheck="true"></textarea>
+            <p class="profile-counter" id="profileCounter">0 / 2000</p>
+            <p class="profile-hint" id="profilePrivacy">По умолчанию здесь пусто. Имя и @username из Telegram и сохранённая биография используются Горепочкой в следующих сообщениях во всех ваших диалогах и передаются ИИ-провайдеру через OpenRouter. Фото не передаётся. Не указывайте секреты и чувствительные данные.</p>
+            <p class="profile-hint">Очистка биографии уберёт её из нового контекста, но не удалит уже отправленные сообщения. Очистка истории диалога не удаляет профиль.</p>
+          </fieldset>
+        </form>
+      </main>
+    </section>
+    <section class="profile-screen hidden" id="characterScreen" aria-labelledby="characterTitle" inert>
+      <header class="header profile-header">
+        <button class="icon-btn" id="characterBack" type="button" aria-label="Назад к переписке" title="Назад к переписке">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        </button>
+        <h1 id="characterTitle" tabindex="-1">Профиль Горепочки</h1>
+        <button class="profile-save" id="characterSave" type="button" disabled>Сохранить</button>
+      </header>
+      <main class="profile-scroll" id="characterScroll">
+        <div class="profile-hero">
+          <div class="avatar profile-avatar" id="characterAvatar" aria-hidden="true">Г</div>
+          <h2 id="characterName">Горепочка</h2>
+          <p id="characterUsername"></p>
+          <span class="character-badge">ИИ-персонаж</span>
+        </div>
+        <p class="profile-status" id="characterStatus" role="status" aria-live="polite">Загрузка профиля…</p>
+        <p class="profile-error hidden" id="characterError" role="alert"></p>
+        <button class="profile-link hidden" id="characterReload" type="button">Загрузить актуальный характер</button>
+        <section class="profile-card" aria-labelledby="characterAboutTitle">
+          <h2 id="characterAboutTitle">О Горепочке</h2>
+          <dl class="profile-details">
+            <div><dt>Имя</dt><dd id="characterFullName">—</dd></div>
+            <div><dt>Возраст</dt><dd id="characterAge">—</dd></div>
+            <div><dt>Увлечения</dt><dd id="characterBiography">—</dd></div>
+          </dl>
+        </section>
+        <section class="profile-card character-editor" aria-labelledby="characterTraitsTitle">
+          <div class="character-section-heading"><h2 id="characterTraitsTitle">Характер</h2><span class="character-count">15 черт</span></div>
+          <p class="profile-hint character-intro">Выберите уровень каждой черты. Изменения действуют только для вас — во всех пяти диалогах, начиная со следующего ответа.</p>
+          <p class="character-summary" id="characterSummary"></p>
+          <div class="trait-tabs" id="characterTabs" role="tablist" aria-label="Группы черт характера"></div>
+          <form id="characterForm" novalidate><div id="characterGroups"></div></form>
+          <p class="profile-hint">Настраивается только манера общения. Имя, возраст, интересы и правила безопасности не меняются. Даже сдержанная Горепочка остаётся уважительной и поддержит в тяжёлой ситуации.</p>
+          <p class="profile-hint">Настройки передаются ИИ-провайдеру через OpenRouter. Сохранение не переписывает прошлые сообщения; уже начатый ответ использует прежний характер.</p>
+          <button class="profile-link" id="characterReset" type="button" disabled>Вернуть исходный характер</button>
+        </section>
+      </main>
+    </section>
+    <section class="profile-screen hidden" id="lorebookScreen" aria-labelledby="lorebookTitle" inert>
+      <header class="header profile-header">
+        <button class="icon-btn" id="lorebookBack" type="button" aria-label="Назад к переписке" title="Назад к переписке">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        </button>
+        <h1 id="lorebookTitle" tabindex="-1">Лорбук Горепочки</h1>
+        <button class="profile-save" id="lorebookSave" type="button" disabled>Сохранить</button>
+      </header>
+      <main class="profile-scroll">
+        <p class="profile-status" id="lorebookStatus" role="status" aria-live="polite">Загрузка лорбука…</p>
+        <p class="profile-error hidden" id="lorebookError" role="alert"></p>
+        <button class="profile-link hidden" id="lorebookReload" type="button">Загрузить актуальный лорбук</button>
+        <section class="profile-card" aria-labelledby="lorebookPrimaryTitle">
+          <h2 id="lorebookPrimaryTitle">Основные записи</h2>
+          <p class="profile-hint">Единый справочник Горепочки. Эти записи задаёт разработчик — изменить, отключить или удалить их нельзя.</p>
+          <div id="lorebookPrimary"></div>
+        </section>
+        <section class="profile-card" aria-labelledby="lorebookMineTitle">
+          <div class="character-section-heading"><h2 id="lorebookMineTitle">Мои записи</h2><span class="character-count" id="lorebookCount">0 / 3</span></div>
+          <p class="profile-hint">До 3 записей · 300 символов · 10 ключей на запись.</p>
+          <p class="profile-hint">Добавляются по ключевым словам или всегда. После сохранения действуют во всех ваших диалогах.</p>
+          <p class="profile-hint" id="lorebookKeywordHint">Ключи — через запятую. Формы слов указывайте отдельно.</p>
+          <p class="profile-hint" id="lorebookEmpty">Личных записей пока нет.</p>
+          <form id="lorebookForm" novalidate><div id="lorebookEntries"></div></form>
+          <button class="profile-link" id="lorebookAdd" type="button" disabled>Добавить запись</button>
+          <p class="profile-hint">Активные записи передаются ИИ-провайдеру. Не указывайте секреты.</p>
+        </section>
+      </main>
+    </section>
+    <div class="toast hidden" id="toast" role="alert"></div>
+    <div class="reaction-picker hidden" id="reactionPicker" role="dialog" aria-label="Выберите реакцию"></div>
+  </div>
+
+  <div class="modal-overlay hidden" id="profileDiscard" role="dialog" aria-modal="true" aria-labelledby="profileDiscardTitle" aria-describedby="profileDiscardDescription">
+    <div class="modal-card">
+      <h2 id="profileDiscardTitle">Не сохранять изменения?</h2>
+      <p id="profileDiscardDescription">Изменения профиля ещё не сохранены. Можно вернуться к редактированию.</p>
+      <div class="modal-actions">
+        <button class="modal-btn" id="profileKeepEditing" type="button">Продолжить</button>
+        <button class="modal-btn danger" id="profileDiscardConfirm" type="button">Не сохранять</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="characterDiscard" role="dialog" aria-modal="true" aria-labelledby="characterDiscardTitle" aria-describedby="characterDiscardDescription">
+    <div class="modal-card">
+      <h2 id="characterDiscardTitle">Не сохранять характер?</h2>
+      <p id="characterDiscardDescription">Изменения ещё не сохранены. Можно вернуться к настройке черт.</p>
+      <div class="modal-actions">
+        <button class="modal-btn" id="characterKeepEditing" type="button">Продолжить</button>
+        <button class="modal-btn danger" id="characterDiscardConfirm" type="button">Не сохранять</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+    <div class="modal-card">
+      <h2 id="modalTitle">Переименовать диалог</h2>
+      <p id="modalDescription"></p>
+      <input id="modalInput" class="modal-input" maxlength="32" autocomplete="off" placeholder="Название диалога" aria-label="Название диалога" />
+      <div class="modal-actions">
+        <button class="modal-btn" id="modalCancel" type="button">Отмена</button>
+        <button class="modal-btn primary" id="modalOk" type="button">Сохранить</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay hidden" id="lorebookDiscard" role="dialog" aria-modal="true" aria-labelledby="lorebookDiscardTitle" aria-describedby="lorebookDiscardDescription">
+    <div class="modal-card">
+      <h2 id="lorebookDiscardTitle">Не сохранять изменения?</h2>
+      <p id="lorebookDiscardDescription">Изменения лорбука ещё не сохранены.</p>
+      <div class="modal-actions">
+        <button class="modal-btn" id="lorebookKeepEditing" type="button">Продолжить</button>
+        <button class="modal-btn danger" id="lorebookDiscardConfirm" type="button">Не сохранять</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay hidden" id="voiceDiscard" role="dialog" aria-modal="true" aria-labelledby="voiceDiscardTitle" aria-describedby="voiceDiscardDescription">
+    <div class="modal-card">
+      <h2 id="voiceDiscardTitle">Удалить запись?</h2>
+      <p id="voiceDiscardDescription">Запись ещё не отправлена. При переходе она будет удалена, текстовый черновик сохранится.</p>
+      <div class="modal-actions"><button class="modal-btn" id="voiceKeep" type="button">Остаться</button><button class="modal-btn danger" id="voiceDiscardConfirm" type="button">Удалить и перейти</button></div>
+    </div>
+  </div>
+  <script type="module" src="./app/main.js"></script>
+</body>
+</html>

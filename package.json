@@ -1,0 +1,58 @@
+{
+  "name": "telegram-ai-bot",
+  "version": "1.0.0",
+  "description": "Secure Telegram bot for interacting with AI via OpenRouter",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:tunnel": "node scripts/tunnel.mjs",
+    "dev:all": "concurrently -k -n bot,tunnel -c cyan,magenta \"npm:dev\" \"npm:dev:tunnel\"",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src webapp scripts",
+    "format": "prettier --write \"src/**/*.{ts,json}\" \"webapp/**/*.{js,css,json}\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,json}\" \"webapp/**/*.{js,css,json}\" \"scripts/**/*.mjs\"",
+    "docs:check": "node scripts/docs-check.mjs",
+    "smoke:webapp": "node scripts/smoke-webapp.mjs",
+    "smoke:files": "node scripts/smoke-textfiles.mjs",
+    "smoke:server": "node scripts/smoke-server-file.mjs",
+    "smoke:tags": "node scripts/smoke-tags.mjs",
+    "smoke:videos": "node scripts/smoke-videos.mjs",
+    "smoke:audio": "node scripts/smoke-audio.mjs",
+    "smoke:recorder": "node scripts/smoke-voice-recorder.mjs",
+    "smoke:video-notes": "node scripts/smoke-video-notes.mjs",
+    "smoke:profile": "node scripts/smoke-profile.mjs",
+    "smoke:lorebook": "node scripts/smoke-lorebook.mjs",
+    "smoke": "npm run build && npm run smoke:webapp && npm run smoke:recorder && npm run smoke:video-notes && npm run smoke:files && npm run smoke:tags && npm run smoke:server && npm run smoke:videos && npm run smoke:audio && npm run smoke:profile && npm run smoke:lorebook"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "busboy": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.3.0",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "sharp": "^0.35.5",
+    "telegraf": "^4.16.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/busboy": "^1.5.5",
+    "@types/express": "^5.0.6",
+    "@types/ffprobe-static": "^2.0.3",
+    "@types/node": "^22.7.4",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.72.1"
+  }
+}

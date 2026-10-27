@@ -1,0 +1,6 @@
+{
+  "name": "telegram-mini-app-webapp",
+  "private": true,
+  "type": "module",
+  "description": "Browser-side Mini App sources (bundler-free ES modules). This file only tells Node tooling that app/**/*.js are ES modules."
+}

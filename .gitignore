@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+# Local tunnel binaries (resolved by scripts/tunnel.mjs via local exe or PATH).
+# Kept locally for dev, never committed to GitHub.
+ngrok.exe
+ngrok
+cloudflared.exe
+cloudflared
