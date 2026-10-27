@@ -68,6 +68,7 @@ export function restore(slotId) {
       appendDate(timestamp);
       const wrap = document.createElement('div');
       wrap.className = `msg ${m.role}`;
+      if (typeof m.id === 'string' && m.id) wrap.setAttribute('data-message-id', m.id);
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
       fillBubble(

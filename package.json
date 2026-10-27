@@ -26,7 +26,11 @@
     "smoke:profile": "node scripts/smoke-profile.mjs",
     "smoke:lorebook": "node scripts/smoke-lorebook.mjs",
     "smoke:settings": "node scripts/smoke-settings.mjs && node scripts/smoke-settings-ui.mjs",
-    "smoke": "npm run build && npm run smoke:webapp && npm run smoke:recorder && npm run smoke:video-notes && npm run smoke:files && npm run smoke:tags && npm run smoke:server && npm run smoke:videos && npm run smoke:audio && npm run smoke:profile && npm run smoke:lorebook && npm run smoke:settings"
+    "smoke:history": "node scripts/smoke-history.mjs",
+    "smoke:chat-meta": "node scripts/smoke-chat-meta.mjs",
+    "smoke:reactions": "node scripts/smoke-reactions.mjs",
+    "smoke:media-sync": "node scripts/smoke-media-sync.mjs",
+    "smoke": "npm run build && npm run smoke:webapp && npm run smoke:recorder && npm run smoke:video-notes && npm run smoke:files && npm run smoke:tags && npm run smoke:server && npm run smoke:videos && npm run smoke:audio && npm run smoke:profile && npm run smoke:lorebook && npm run smoke:settings && npm run smoke:history && npm run smoke:chat-meta && npm run smoke:reactions && npm run smoke:media-sync"
   },
   "engines": {
     "node": ">=18"

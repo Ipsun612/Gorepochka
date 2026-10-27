@@ -106,14 +106,18 @@ export function sendMessage(preset) {
       });
       cancelSendBtn.classList.add('hidden'); // generation has finished; delivery is not cancellable
       setActivity('Горепочка печатает…');
+      const botWraps = [];
       await deliverAssistantReply(data, (reply) => {
-        addMsg('bot', reply);
+        const wrap = addMsg('bot', reply);
+        if (wrap && data.assistantMessageId) wrap.setAttribute('data-message-id', data.assistantMessageId);
+        botWraps.push(wrap);
         haptic('success');
       });
+      if (data.userMessageId && userMessage) userMessage.setAttribute('data-message-id', data.userMessageId);
       if (data.userReaction) {
         setMessageReaction(userMessage, data.userReaction);
         persist();
-      }
+      } else persist();
       if (data.model) state.model = data.model;
       setStatus('online', 'на связи');
       if (video)

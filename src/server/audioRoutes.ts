@@ -14,6 +14,8 @@ import {
 import { isRateLimited } from '../services/session.js';
 import { resolveIdentity } from './requestIdentity.js';
 import { toUserError } from '../utils/security.js';
+import { profileStore } from '../services/profile/store.js';
+import { getMediaRow, mediaFilePath } from '../services/media/store.js';
 
 export function registerAudioRoutes(app: express.Express): void {
   app.post('/api/audio', (req, res) => {
@@ -127,12 +129,34 @@ export function registerAudioRoutes(app: express.Express): void {
     const identity = resolveIdentity(req, true, res);
     if (!identity) return;
     const audio = getAudio(String(req.params.id), identity.historyKey);
-    if (!audio) {
-      res.status(404).json({ ok: false, error: 'Запись недоступна или срок хранения истёк.' });
+    if (audio) {
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.json({ ok: true, audio: describeAudio(audio) });
       return;
     }
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.json({ ok: true, audio: describeAudio(audio) });
+    if (identity.verified) {
+      try {
+        const saved = getMediaRow(profileStore().getDb(), identity.userId, String(req.params.id));
+        if (saved && saved.kind === 'audio') {
+          res.setHeader('Cache-Control', 'private, no-store');
+          res.json({
+            ok: true,
+            audio: {
+              id: saved.id,
+              state: 'ready',
+              size: saved.size,
+              bytes: saved.bytes,
+              duration: saved.duration,
+              waveform: saved.waveform,
+            },
+          });
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    res.status(404).json({ ok: false, error: 'Запись недоступна или срок хранения истёк.' });
   });
 
   app.delete('/api/audio/:id', (req, res) => {
@@ -155,16 +179,31 @@ export function registerAudioRoutes(app: express.Express): void {
     const identity = resolveIdentity(req, true, res);
     if (!identity) return;
     const audio = getAudio(String(req.params.id), identity.historyKey);
-    if (!audio || audio.state !== 'ready') {
-      res.status(404).json({ ok: false, error: 'Запись недоступна или срок хранения истёк.' });
+    if (audio && audio.state === 'ready') {
+      const release = pinAudio(audio);
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.type('audio/mpeg');
+      res.sendFile(path.join(audio.directory, 'audio.mp3'), (error) => {
+        release();
+        if (error && !res.headersSent) res.status(404).end();
+      });
       return;
     }
-    const release = pinAudio(audio);
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.type('audio/mpeg');
-    res.sendFile(path.join(audio.directory, 'audio.mp3'), (error) => {
-      release();
-      if (error && !res.headersSent) res.status(404).end();
-    });
+    if (identity.verified) {
+      try {
+        const saved = getMediaRow(profileStore().getDb(), identity.userId, String(req.params.id));
+        if (saved && saved.kind === 'audio') {
+          res.setHeader('Cache-Control', 'private, no-store');
+          res.type('audio/mpeg');
+          res.sendFile(mediaFilePath(saved.userId, saved.slot, saved.id, 'audio.mp3'), (error) => {
+            if (error && !res.headersSent) res.status(404).end();
+          });
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    res.status(404).json({ ok: false, error: 'Запись недоступна или срок хранения истёк.' });
   });
 }

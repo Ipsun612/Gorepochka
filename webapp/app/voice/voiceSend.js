@@ -119,9 +119,11 @@ export async function sendVoice() {
       cancelSendBtn.classList.add('hidden');
       setActivity('Горепочка печатает…');
       await deliverAssistantReply(data, (text) => {
-        addMsg('bot', text);
+        const botWrap = addMsg('bot', text);
+        if (botWrap && data.assistantMessageId) botWrap.setAttribute('data-message-id', data.assistantMessageId);
         haptic('success');
       });
+      if (data.userMessageId) wrap.setAttribute('data-message-id', data.userMessageId);
       if (data.userReaction) setMessageReaction(wrap, data.userReaction);
       updateMessage(wrap, null, sentLabel, { delivery: 'sent' });
       setStatus('online', 'на связи');

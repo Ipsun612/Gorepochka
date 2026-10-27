@@ -57,6 +57,7 @@ Object.assign(process.env, {
   VIDEO_PROCESS_TIMEOUT_MS: '15000',
   VIDEO_ANALYSIS_TIMEOUT_MS: '10000',
   PROFILE_DB_PATH: path.join(directory, 'profiles.sqlite'),
+  MEDIA_DIR: path.join(directory, 'media'),
 });
 require('../dist/services/botProfile.js').getBotProfile = async () => ({ name: 'Video test bot' });
 const { createServer } = require('../dist/server/server.js');

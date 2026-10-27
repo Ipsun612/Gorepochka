@@ -32,8 +32,11 @@ provider error, surfaced as a normal chat error. Limits are listed in
 picked file against `MAX_IMAGE_BYTES` (exposed by `/api/meta`) so oversized files are
 rejected with a friendly message before upload.
 
-Uploaded images live in the per-chat in-memory history for as long as the turn is
-within `MAX_HISTORY_MESSAGES`.
+Uploaded images live in the durable per-slot history (`chat_messages`, 35 pairs).
+`GET /api/chat/history` returns the full JPEG dataURL inline, so a second device
+displays the same picture. See [Configuration](./configuration.md#image-attachments). The Mini App pre-checks the
+picked file against `MAX_IMAGE_BYTES` (exposed by `/api/meta`) so oversized files are
+rejected with a friendly message before upload.
 
 ## Text files
 
@@ -52,8 +55,12 @@ The same 📎 button accepts **any file that contains text** — `.txt`, `.md`, 
    so the model can summarize, review or explain the file. Follow-up questions keep
    the file in the chat's context.
 
-Text files work with **any** chat model (no vision needed, unlike images). The app
-cannot download the file back — only its text is sent to the model. Limits are listed
+Text files work with **any** chat model (no vision needed, unlike images).
+`GET /api/chat/history` returns the message text plus a `file: { name, snippet }`
+descriptor, so a second device shows the same file bubble. The full file text stays
+in the durable history for model context (capped at `FILE_MAX_CHARS`). There is no
+separate file download — the bubble shows name + 240-char snippet, matching the
+sending device. Limits are listed
 in [Configuration](./configuration.md#text-file-attachments).
 
 ## Video
@@ -109,14 +116,16 @@ error. Model/provider payload and context limits still apply.
   anonymous development uses `X-Miniapp-Client-Id`. Upload/media/job IDs are
   ownership-checked; a video cannot be submitted into another chat slot.
 
-Source files are discarded after conversion. Converted media is held privately on
-disk; model history contains only references. Media expires after one hour by default
-(`VIDEO_TTL_MS`) and is removed on chat clear/delete, history eviction or graceful
-shutdown. Media/job registries are process-local, like the existing chat history:
-restarting the server invalidates old media IDs, and a failed UI retry requires
-reselecting the source after reloading. A crash may leave temporary files for the
-host's temporary-directory cleanup. For multiple server instances, use shared private
-storage, a durable job queue and shared sessions.
+Source files are discarded after conversion. Converted media persists durably in
+`MEDIA_DIR` + the `chat_media` table per `(user_id, slot, media_id)`, referenced from
+history as `video_ref`. `GET /api/chat/history` returns a playable `video` descriptor
+(id, poster, duration); private playback (`GET /api/videos/:id` + `/media`) falls back
+to durable files when the in-flight upload is gone, so a second device or a restarted
+server plays the same clip. Unreferenced media is pruned on history trim, and slot/user
+media is removed on chat clear/delete. In-flight (uncommitted) uploads stay in the
+process-local tmpdir with the 1h TTL (`VIDEO_TTL_MS`); anonymous dev uploads are never
+persisted. For multiple server instances, share `MEDIA_DIR` (or object storage) alongside
+the SQLite file.
 
 Durationless browser WebM is accepted: a bounded decode measures its duration before
 conversion; the normalized output is checked again. Over-limit clips are rejected,

@@ -24,17 +24,18 @@ message just points the user to the Mini App.
 
 - **Mini App only** — the bot redirects; all conversation, history and media handling
   live in the secured web app. See [Architecture](./docs/architecture.md).
-- **Five parallel chats** — tab bar with rename/clear/delete and per-chat history.
+- **Five parallel chats** — tab bar with rename/clear/delete, per-chat durable history (35 pairs/slot, SQLite) and cross-device tab names.
 - **Image attachments** — any common format, previewed then re-encoded to JPEG
-  server-side for vision models. See [Attachments](./docs/attachments.md).
+  server-side for vision models. Images sync across devices via the durable history API. See [Attachments](./docs/attachments.md).
 - **Text-file attachments** — `.txt`, `.md`, `.json`, code and config files injected
-  into the prompt as context.
+  into the prompt as context. Name + snippet sync across devices; the model keeps the full text.
 - **Video attachments** — streamed uploads, FFmpeg-normalized MP4, native `video_url`
-  input, cancellation/retry and private playback.
+  input, cancellation/retry and private playback. Committed videos persist in `MEDIA_DIR` + SQLite and play on a second device.
 - **Voice messages** — tap-to-record microphone input, second tap stops to preview,
   Send confirms, Delete/Escape discards,
   interruption preview and seeking,
   playable private bubbles, and native audio input to the same configured model.
+  Committed voice persists in `MEDIA_DIR` + SQLite and plays cross-device.
   See [Voice messages](./docs/voice-messages.md).
 - **Circular video messages** — double-tap the microphone/camera to switch modes, single tap
   to start/stop recording up to 60 seconds, then Send. Mobile-only camera flipping during capture;
@@ -45,7 +46,7 @@ message just points the user to the Mini App.
 - **Message reactions** — tap Горепочка's bubbles to choose from ten emojis;
   she can react to your current message using `<Поставить реакцию: ❤️>`.
   Each pill shows the reactor's Telegram avatar (initials fallback) beside the emoji.
-  Reactions survive reload in the device-local chat cache, not across devices.
+  Reactions sync across devices (SQLite, display-only, never AI context).
   See [Reactions](./docs/reactions.md).
 - **Per-user profiles** — persisted name/username/biography context, private avatars,
   SQLite storage. See [Profiles](./docs/profiles.md).
@@ -183,6 +184,10 @@ startup if something is invalid. Every variable and its default is documented in
 | `npm run smoke:profile` | signed auth, SQLite user/character settings, 15 traits + AI context (build first) |
 | `npm run smoke:lorebook` | lore matching, strict limits, SQLite persistence, auth/isolation + AI context (build first) |
 | `npm run smoke:settings` | theme sync, isolation, conflicts, early cache + changelog data (build first) |
+| `npm run smoke:history` | durable SQLite chat history, 35-pair cap, isolation + restart (build first) |
+| `npm run smoke:chat-meta` | cross-device tab names/active slot, conflicts, restart + isolation (build first) |
+| `npm run smoke:reactions` | display-only synced reactions, validation + isolation (build first) |
+| `npm run smoke:media-sync` | cross-device images/files inline + durable video/voice store (build first) |
 | `npm run smoke` | build + run every smoke test |
 
 `npm run smoke` is the pre-deploy check. See [Development](./docs/development.md).

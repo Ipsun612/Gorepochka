@@ -43,6 +43,7 @@ Object.assign(process.env, {
   OPENROUTER_MODEL: 'test/profile',
   OPENROUTER_BASE_URL: `http://127.0.0.1:${provider.address().port}/api/v1`,
   PROFILE_DB_PATH: path.join(directory, 'profiles.sqlite'),
+  MEDIA_DIR: path.join(directory, 'media'),
   PROFILE_BIO_MAX_CHARS: '2000',
   PROMPT_MAX_TOTAL_CHARS: '32000',
   ANON_MODE: 'off',

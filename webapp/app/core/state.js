@@ -20,6 +20,7 @@ export const state = {
   modalMode: null, // 'rename' | 'delete' | 'clear' | 'info' | null
   chats: [],
   activeId: null,
+  chatsRevision: 0,
   model: '',
   // Attachment limits (updated from /api/meta; defaults are conservative).
   maxImageBytes: 10 * 1024 * 1024,

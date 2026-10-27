@@ -12,7 +12,10 @@ export function findChat(id) {
 
 export function saveChatMeta() {
   try {
-    localStorage.setItem(LS_CHATS_KEY, JSON.stringify({ chats: state.chats, activeId: state.activeId }));
+    localStorage.setItem(
+      LS_CHATS_KEY,
+      JSON.stringify({ chats: state.chats, activeId: state.activeId, revision: state.chatsRevision ?? 0 }),
+    );
   } catch (e) {}
 }
 
@@ -50,6 +53,8 @@ export function loadChatMeta() {
       .map((c) => ({ id: c.id, name: String(c.name || '').slice(0, 32) || defaultChatName(c.id) }));
   }
   if (data && Number.isInteger(data.activeId) && findChat(data.activeId)) state.activeId = data.activeId;
+  if (Number.isInteger(data?.revision) && data.revision >= 0) state.chatsRevision = data.revision;
+  else if (state.chatsRevision === undefined) state.chatsRevision = 0;
   if (state.chats.length === 0) {
     state.chats = [{ id: 1, name: defaultChatName(1) }];
     if (!state.activeId) state.activeId = 1;
@@ -84,6 +89,8 @@ export function persist() {
       const textNode = n.querySelector('.bubble-text');
       const txt = textNode ? textNode.innerText || '' : '';
       const item = { role, text: txt.slice(0, MAX_MSG_LEN) };
+      const messageId = n.getAttribute('data-message-id');
+      if (typeof messageId === 'string' && messageId) item.id = messageId;
       const reaction = normalizeReaction(n.getAttribute('data-reaction'));
       if (reaction) item[role === 'user' ? 'botReaction' : 'userReaction'] = reaction;
       if (n.querySelector('.bubble-attach-note')) item.attached = true;

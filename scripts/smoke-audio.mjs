@@ -47,6 +47,7 @@ Object.assign(process.env, {
   WEBAPP_URL: '',
   ALLOWED_USER_IDS: '',
   PROFILE_DB_PATH: path.join(directory, 'profiles.sqlite'),
+  MEDIA_DIR: path.join(directory, 'media'),
   RATE_LIMIT_MAX_REQUESTS: '1000',
   MAX_AUDIO_BYTES: '131072',
   AUDIO_MAX_DURATION_SECONDS: '2',

@@ -77,9 +77,10 @@ Telegram Web's parent iframe may need to delegate permissions, which this server
 override. All camera, microphone and canvas tracks stop on finish/discard/interruption;
 late permission/camera-switch results are stopped too.
 
-Retention is unchanged: `VIDEO_TTL_MS` defaults to one hour; chat/history cleanup and
-shutdown delete private media. A server restart invalidates IDs. Durable or cross-device
-playback requires separate persistent storage and is not provided by these notes.
+Retention: committed clips persist durably in `MEDIA_DIR` + `chat_media` and play
+cross-device via `GET /api/videos/:id` + `/media`; orphans are pruned on history trim
+and slot/user media is removed on chat clear/delete. In-flight uploads keep the 1h
+`VIDEO_TTL_MS` TTL; anonymous dev uploads are never persisted.
 
 ## Verification
 

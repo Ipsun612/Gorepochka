@@ -223,7 +223,13 @@ export function appendTimestamp(wrap, bubble, timestamp) {
   bubble.appendChild(meta);
 }
 
-export function addMsg(role, text, image, attached, file, video, voice) {
+export function setMessageId(wrap, messageId) {
+  if (!wrap) return;
+  if (typeof messageId === 'string' && messageId) wrap.setAttribute('data-message-id', messageId);
+  else wrap.removeAttribute('data-message-id');
+}
+
+export function addMsg(role, text, image, attached, file, video, voice, messageId = null) {
   if (role !== 'user') {
     text = hideAssistantTags(text).trim();
     if (!text && !image && !attached && !file && !video && !voice) return;
@@ -234,6 +240,7 @@ export function addMsg(role, text, image, attached, file, video, voice) {
   appendDate(timestamp);
   const wrap = document.createElement('div');
   wrap.className = `msg ${role === 'user' ? 'user' : 'bot'}`;
+  setMessageId(wrap, messageId);
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   fillBubble(bubble, text, image, attached, file, video, voice);

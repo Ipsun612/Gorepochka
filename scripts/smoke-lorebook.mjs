@@ -42,6 +42,7 @@ Object.assign(process.env, {
   OPENROUTER_MODEL: 'test/lorebook',
   OPENROUTER_BASE_URL: `http://127.0.0.1:${provider.address().port}/api/v1`,
   PROFILE_DB_PATH: path.join(directory, 'profiles.sqlite'),
+  MEDIA_DIR: path.join(directory, 'media'),
   ANON_MODE: 'off',
   WEBAPP_URL: '',
   ALLOWED_USER_IDS: '',

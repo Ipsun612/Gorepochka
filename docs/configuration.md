@@ -52,7 +52,7 @@ budget. The bundled prompt files fit the default budget without partial instruct
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ALLOWED_USER_IDS` | _(empty = public)_ | Comma-separated Telegram user IDs allowed to use the bot + Mini App. |
-| `MAX_HISTORY_MESSAGES` | `20` | Per-chat history depth kept for the model. |
+| `MAX_HISTORY_MESSAGES` | `35` | Per-chat history depth kept for the model (70 entries per slot, durable in SQLite and shared across devices). |
 | `MAX_MESSAGE_LENGTH` | `4000` | Maximum input length (characters). |
 | `RATE_LIMIT_WINDOW_MS` | `10000` | Sliding-window size for the per-user rate limiter. |
 | `RATE_LIMIT_MAX_REQUESTS` | `3` | Requests allowed per window (shared by bot chat and Mini App). |
@@ -144,6 +144,7 @@ server validation both enforce limits; model/provider limits still apply.
 | --- | --- | --- |
 | `PROFILE_DB_PATH` | `data/profiles.sqlite` | Private SQLite file; relative to the working directory, or absolute. |
 | `PROFILE_BIO_MAX_CHARS` | `2000` | Biography Unicode-character limit, configurable up to 8000. |
+| `MEDIA_DIR` | `data/media` | Durable video/voice files per `(user_id, slot, media_id)`; back up alongside the database. |
 
 `PROFILE_DB_PATH` also stores per-user Горепочка trait settings in the separate
 `character_profiles` table. There is no free-text personality field or additional

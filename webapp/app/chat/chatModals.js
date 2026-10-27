@@ -99,6 +99,9 @@ export async function applyModal() {
     if (chat) {
       chat.name = name;
       saveChatMeta();
+      if (isLiveSlot(chat.id)) {
+        void import('./chatMetaSync.js').then((m) => m.pushChatsToServer().catch(() => {}));
+      }
       renderTabs();
       haptic('success');
     }
@@ -124,6 +127,9 @@ export async function applyModal() {
       const next = state.chats[idx] || state.chats[idx - 1];
       state.activeId = null; // Do not persist the deleted DOM back into its released slot.
       saveChatMeta();
+      if (isLiveSlot(chatId)) {
+        void import('./chatMetaSync.js').then((m) => m.pushChatsToServer().catch(() => {}));
+      }
       management(false);
       switchChat(next.id);
       toast('Диалог удалён');

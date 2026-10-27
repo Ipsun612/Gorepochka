@@ -446,6 +446,7 @@ export async function resolveVideoMessages(messages: ChatMessage[], owner: strin
   // Bound outgoing base64/JSON as well as storage. Prefer the most recent clips.
   const included = new Set<string>();
   let remaining = config.VIDEO_MAX_OUTPUT_BYTES * 2;
+  const durableBytes = new Map<string, number>();
   for (const message of [...messages].reverse()) {
     if (typeof message.content === 'string') continue;
     for (const part of [...message.content].reverse()) {
@@ -454,6 +455,20 @@ export async function resolveVideoMessages(messages: ChatMessage[], owner: strin
       if (video && video.bytes <= remaining) {
         included.add(video.id);
         remaining -= video.bytes;
+      } else if (!video && /^\d+$/.test(owner)) {
+        try {
+          const { profileStore } = await import('./profile/store.js');
+          const { getMediaRow, mediaFilePath } = await import('./media/store.js');
+          const saved = getMediaRow(profileStore().getDb(), Number(owner), part.videoId);
+          if (saved && (saved.kind === 'video' || saved.kind === 'video-note') && saved.bytes <= remaining) {
+            await fs.access(mediaFilePath(saved.userId, saved.slot, saved.id, 'video.mp4'));
+            included.add(saved.id);
+            remaining -= saved.bytes;
+            durableBytes.set(saved.id, saved.bytes);
+          }
+        } catch {
+          /* durable miss: placeholder below */
+        }
       }
     }
   }
@@ -464,11 +479,28 @@ export async function resolveVideoMessages(messages: ChatMessage[], owner: strin
         message.content.map(async (part) => {
           if (part.type !== 'video_ref') return part;
           const video = getVideo(part.videoId, owner);
-          if (!video || video.state !== 'ready')
+          if (!video || video.state !== 'ready') {
+            if (/^\d+$/.test(owner)) {
+              try {
+                const { profileStore } = await import('./profile/store.js');
+                const { getMediaRow, mediaFilePath } = await import('./media/store.js');
+                const saved = getMediaRow(profileStore().getDb(), Number(owner), part.videoId);
+                if (saved && (saved.kind === 'video' || saved.kind === 'video-note') && included.has(saved.id)) {
+                  const bytes = await fs.readFile(mediaFilePath(saved.userId, saved.slot, saved.id, 'video.mp4'));
+                  return {
+                    type: 'video_url' as const,
+                    video_url: { url: `data:video/mp4;base64,${bytes.toString('base64')}` },
+                  };
+                }
+              } catch {
+                /* fall through to placeholder */
+              }
+            }
             return {
               type: 'text' as const,
               text: '[Previously attached video has expired. Ask the user to attach it again if needed.]',
             };
+          }
           if (!included.has(video.id))
             return {
               type: 'text' as const,

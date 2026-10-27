@@ -7,6 +7,8 @@ import { registerCors } from './middleware/cors.js';
 import { registerErrorHandler } from './middleware/errorHandler.js';
 import { registerMetaRoutes } from './routes/metaRoutes.js';
 import { registerChatRoutes } from './routes/chatRoutes.js';
+import { registerHistoryRoutes } from './routes/historyRoutes.js';
+import { registerChatMetaRoutes } from './routes/chatMetaRoutes.js';
 import { registerProfileRoutes } from './profileRoutes.js';
 import { registerCharacterRoutes } from './characterRoutes.js';
 import { registerLorebookRoutes } from './lorebookRoutes.js';
@@ -32,6 +34,8 @@ export function createServer(): express.Express {
 
   registerMetaRoutes(app);
   registerChatRoutes(app);
+  registerHistoryRoutes(app);
+  registerChatMetaRoutes(app);
   registerVideoRoutes(app, resolveIdentity);
   registerAudioRoutes(app);
   registerProfileRoutes(app);

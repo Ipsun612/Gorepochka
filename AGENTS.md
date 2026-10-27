@@ -35,3 +35,5 @@
      `scripts/smoke-<feature>.mjs` case. Before finishing, run the full gate
      (same as CI): `npm run typecheck`, `npm run lint`,
      `npm run format:check`, `npm run docs:check`, then `npm run smoke`.
+
+When you make patches or create new modules, never commit the results until I give the word to do so.

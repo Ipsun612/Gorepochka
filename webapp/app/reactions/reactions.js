@@ -164,8 +164,15 @@ export function initializeReactions() {
     button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => {
       if (target && targetSlot === state.activeId && chatEl.contains(target) && canReact()) {
-        setMessageReaction(target, target.getAttribute('data-reaction') === emoji ? null : emoji);
+        const next = target.getAttribute('data-reaction') === emoji ? null : emoji;
+        setMessageReaction(target, next);
         persist();
+        const messageId = target.getAttribute('data-message-id');
+        if (messageId && targetSlot !== null) {
+          void import('../history/historyApi.js')
+            .then(({ postReaction }) => postReaction(targetSlot, messageId, next))
+            .catch(() => {});
+        }
         haptic('light');
       }
       closeReactionPicker(true);

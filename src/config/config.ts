@@ -53,13 +53,14 @@ const envSchema = z
           .filter((n) => Number.isSafeInteger(n)),
       ),
 
-    MAX_HISTORY_MESSAGES: IntFromString(20),
+    MAX_HISTORY_MESSAGES: IntFromString(35),
     MAX_MESSAGE_LENGTH: IntFromString(4000),
     RATE_LIMIT_WINDOW_MS: IntFromString(10000),
     RATE_LIMIT_MAX_REQUESTS: IntFromString(3),
 
     PROFILE_DB_PATH: z.string().min(1).default('data/profiles.sqlite'),
     PROFILE_BIO_MAX_CHARS: IntFromString(2000).pipe(z.number().max(8000)),
+    MEDIA_DIR: z.string().min(1).default('data/media'),
 
     // Character-based pauses between tag-separated Mini App reply messages.
     AI_TYPING_CHARS_PER_SECOND: IntFromString(20),

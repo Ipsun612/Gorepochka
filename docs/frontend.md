@@ -98,10 +98,16 @@ New messages cache their actual local `createdAt` ISO timestamp; bubble times an
 separators survive reload. Old cache entries without valid timestamps remain undated
 rather than receiving invented dates. Captionless images that cannot be decoded locally
 retain an honest attachment note after reload. Existing storage keys and custom chat
-names remain compatible. As before, the cache is display-only, limited to the last 30
-messages; server history remains process-local, not a durable synchronized inbox.
-Validated `botReaction` (on user messages) and `userReaction` (on bot messages) survive
-the same cache round-trip. They do not sync across devices or become AI context.
+names remain compatible. The local cache stays display-only, limited to the last 30
+messages; the durable server inbox (`GET /api/chat/history`, 35 pairs per slot in
+SQLite) is the cross-device truth. On boot/switch the app paints the cache instantly,
+then replaces it when the server has newer turns. Server turns carry inline JPEG
+images, file descriptors, and playable video/voice descriptors backed by durable
+`MEDIA_DIR` files — a second device sees the same bubbles and can play the same
+private media. Pre-migration turns without durable bytes keep the honest attachment
+note. Validated `botReaction`
+(on user messages) and `userReaction` (on bot messages) survive both the cache
+round-trip and the server sync. They stay display-only and never become AI context.
 
 ## Message reactions
 

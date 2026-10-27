@@ -25,6 +25,10 @@
 | `npm run smoke:profile` | signed auth, SQLite user/character settings, 15-trait validation/conflicts, avatars, AI snapshots and prompt budgets (build first) |
 | `npm run smoke:lorebook` | strict schemas/Unicode, literal keywords, SQLite persistence, auth/isolation/conflicts and lore context snapshots (build first) |
 | `npm run smoke:settings` | signed theme API, SQLite migration/isolation/conflicts, theme UI and changelog data (build first) |
+| `npm run smoke:history` | durable SQLite chat history (35 pairs/slot), isolation, restart + anon memory (build first) |
+| `npm run smoke:chat-meta` | cross-device tab names/active slot, conflicts, restart + isolation (build first) |
+| `npm run smoke:reactions` | display-only synced reactions, validation, isolation + no model leakage (build first) |
+| `npm run smoke:media-sync` | cross-device images/files inline + durable video/voice store, prune + restart (build first) |
 | `npm run smoke` | build + run every smoke test |
 
 ## What the smoke tests cover
@@ -72,6 +76,19 @@ strict validation, persistence, concurrent revisions, anonymous isolation, theme
 failed saves, foreground refresh, Telegram chrome and release data. `smoke:webapp`
 also covers settings/changelog navigation, draft preservation and recording guards.
 
+`smoke:history` drives `/api/chat` against a stub provider, then checks
+`GET /api/chat/history` display shapes (no bytes), 35-pair cap config, user isolation,
+SQLite restart persistence via a child process, `POST /api/new` clearing and anonymous
+memory-only isolation. `smoke:chat-meta` checks `GET/PUT /api/chats` validation,
+revision conflicts (`CHATS_CONFLICT`), restart persistence, isolation and anonymous
+memory. `smoke:reactions` checks `POST /api/chat/reaction` validation, 404s,
+display-only sync (reactions never leak into the next model prompt), isolation and
+auth. `smoke:media-sync` drives image + text-file turns through `/api/chat` and checks
+`GET /api/chat/history` returns inline JPEGs, `file` descriptors and split message text
+for device B, plus isolation, SQLite restart persistence and the durable `chat_media`
+store (save/read/prune/clear). `smoke:webapp` now also stubs `/api/chats` + `/api/chat/history` and asserts
+cross-device tab sync is attempted without breaking archives.
+
 Lore regressions validate the developer's primary JSON but use isolated keyword/content
 fixtures, so replacing the original placeholder text does not break activation tests.
 They also require active permanent/keyword facts in the actual final user
@@ -90,7 +107,7 @@ iOS/Android/Desktop checks.
 ## Adding a tag
 
 Reaction regressions are included in `smoke:tags`, `smoke:webapp`, `smoke:server`,
-`smoke:audio` and `smoke:videos`. They cover bare/bracketed emoji, grapheme validation,
+`smoke:audio`, `smoke:videos` and `smoke:reactions`. They cover bare/bracketed emoji, grapheme validation,
 malformed/nested commands, last-valid-wins, unchanged split timing and clean history,
 default prompt budgeting, the ten-button bot-only picker, keyboard, toggle/replace,
 cache validation/restoration, slot isolation, archives and direct/media-job responses.

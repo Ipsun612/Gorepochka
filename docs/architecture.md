@@ -36,15 +36,17 @@ handling and OpenRouter calls. `src/bot/bot.ts` never calls OpenRouter.
 ## Multi-chat (max 5)
 
 The Mini App has a compact chat tab bar under the header. Each chat has its own
-dialog history (server-side key `<identity>#c<slot>` plus a local display cache per
-slot). Tap a tab to switch; **＋** creates a chat. The header **⋮** menu (also
+durable dialog history in SQLite (`chat_messages`, keyed by `(user_id, slot)`,
+35 pairs per slot) plus a light local display cache per slot (last 30 bubbles).
+Tab names and the active slot persist cross-device in `chat_tabs`/`chat_meta`
+with revision checks (`CHATS_CONFLICT`). Tap a tab to switch; **＋** creates a chat. The header **⋮** menu (also
 available by tapping the active tab) provides **Переименовать**, **Очистить
 историю**, **О модели**, **Настройки**, and **Удалить диалог**. The book/globe icon immediately left
 of the user's avatar opens the lorebook. Clear/delete require confirmation;
 the last live chat can be cleared rather than deleted. Free slots are reused within
 1–5 only after successful server cleanup. Failed cleanup leaves existing chat metadata
-and messages intact. Saved chat IDs above 5 are preserved as read-only archives rather
-than silently remapped (see [Frontend](./frontend.md)).
+and messages intact. Saved chat IDs above 5 are preserved as local-only read-only archives rather
+than silently remapped or sent to the server (see [Frontend](./frontend.md)).
 
 ## Attachments
 
@@ -66,8 +68,11 @@ a stable canvas track for mobile camera switching. See [Video notes](./video-not
 | `GET` | `/api/meta` | model name, image/file limits, bot avatar URL |
 | `GET` | `/api/bot-avatar` | public, proxied bot avatar |
 | `GET` | `/api/prompts` | list prompt filenames (authenticated) |
-| `POST` | `/api/chat` | send a message (text / image / file / video / voice) |
-| `POST` | `/api/new` | clear one chat slot (`chatId: 1..5`) or all slots |
+| `POST` | `/api/chat` | send a message (text / image / file / video / voice); returns `userMessageId`/`assistantMessageId` turn ids |
+| `POST` | `/api/new` | clear one chat slot (`chatId: 1..5`) or all slots (history + media, names kept) |
+| `GET` | `/api/chat/history?chatId=1..5&limit=` | durable per-slot turns with `userReaction`/`botReaction`, inline JPEG `image`, `file` descriptor, playable `video`/`voice` descriptors |
+| `POST` | `/api/chat/reaction` | set/clear a display-only reaction on an assistant turn (`userReaction`) |
+| `GET`/`PUT` | `/api/chats` | cross-device tab names + active slot with revision checks (`CHATS_CONFLICT`) |
 | `GET`/`POST` | `/api/profile`, `/api/profile/sync`, `/api/profile/avatar` | user profiles — see [Profiles](./profiles.md) |
 | `GET`/`POST` | `/api/character-profile` | Горепочка's read-only identity + 15 per-user trait choices — see [Character profile](./character-profile.md) |
 | `GET`/`POST` | `/api/lorebook` | one read-only primary book + three private entries per user — see [Lorebook](./lorebook.md) |
@@ -80,14 +85,18 @@ a stable canvas track for mobile camera switching. See [Video notes](./video-not
 - `openrouter.ts` — OpenRouter API client (timeout, sanitized errors).
 - `images.ts` — image uploads: any format → JPEG (`sharp`).
 - `textfiles.ts` — text-file uploads: base64 → validated, capped text.
-- `videos.ts` — private video storage + FFmpeg/FFprobe normalization.
-- `audio.ts` — private audio storage, MP3 normalization, waveforms and bounded native context.
+- `videos.ts` — private video uploads (tmpdir) + FFmpeg/FFprobe normalization; committed clips persist via `media/`.
+- `audio.ts` — private audio uploads (tmpdir), MP3 normalization, waveforms and bounded native context; committed voice persists via `media/`.
+- `media/` — durable `chat_media` + `MEDIA_DIR` files per `(user_id, slot, id)`; orphan prune on trim/clear; fallback for model resolve + private playback.
+- `history/display.ts` — content → display (message/file split, inline images).
 - `chatJobs.ts` — cancellable media analysis jobs + retry idempotency.
 - `prompts.ts` — file-based system prompts (`NN_name.txt`/`.md` in prefix order).
 - `tags/` — exact Russian tag registry, tokenizer + modular handlers.
 - `typingDelay.ts` — Unicode character-based pauses between reply parts.
-- `session.ts` — per-user history + per-user rate limiter (in-memory).
-- `profile/` — persistent user profiles, Telegram sync + AI context; shared SQLite connection also stores character settings.
+- `session.ts` — per-user history LRU cache over SQLite + per-user rate limiter (anon stays memory-only).
+- `history/` — durable `chat_messages` per `(user_id, slot)` (35 pairs), display-only `userReaction`/`botReaction` columns, `GET history` / `POST reaction` shapes.
+- `chatMeta/` — cross-device `chat_tabs` + `chat_meta` (names/activeSlot/revision) with `CHATS_CONFLICT`.
+- `profile/` — persistent user profiles, Telegram sync + AI context; shared SQLite connection also stores character settings, history, tabs, reactions and media index.
 - `character/` — 15-trait catalog, strict numeric validation, per-user settings + protected prompt guidance.
 - `lorebook/` — strict four-field entries (including optional title `comment`, max 40 characters), primary JSON loader, literal keyword selection, private settings and reference context.
 - `settings/` — validated, independently revisioned theme preferences in the shared profile database.

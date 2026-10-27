@@ -54,17 +54,22 @@ requires ordinary text. User-written tag strings are never interpreted.
 
 ## Storage and privacy
 
-Reactions are **localStorage-only** in the existing per-slot, last-30-message cache.
-User messages save `botReaction`; bot messages save `userReaction`. Cache/API
+Reactions persist in two layers: the per-slot last-30 localStorage cache
+(`botReaction` on user bubbles, `userReaction` on bot bubbles) and the durable
+SQLite `chat_messages` (`POST /api/chat/reaction`, `GET /api/chat/history`).
+User picks attach only to bot bubbles (assistant turns); Горепочка's auto reaction
+attaches only to the triggering user turn at commit time. Cache/API
 metadata is validated before rendering using text nodes, not HTML. Reload and slot
 switch retain reactions; clear/delete removes them with messages. Clearing browser
-data, losing the cache or switching devices loses them. No new database table,
-endpoint, synchronization or AI call is introduced. Reactions are not included
+data loses only the local cache — the server copy restores on the next device.
+No new Telegram Bot API call is introduced. Reactions are never included
 in model conversation history; raw model commands are removed before history commits.
 
 ## Implementation and tests
 
 - `src/services/tags/reaction.ts`: validation and parameterized tag handler.
+- `src/services/history/`: durable turns + display-only reaction columns (`GET /api/chat/history`, `POST /api/chat/reaction`).
+- `src/server/routes/historyRoutes.ts`: history list + reaction endpoints (see [Architecture](./architecture.md)).
 - `src/services/tags/index.ts`: generic parameterized dispatch + reply metadata.
 - `webapp/app/reactions/reactions.js`: rendering, picker, keyboard and precise user-wrap targeting.
 - `webapp/app/chat/render.js`, `profile/profileRender.js`: refresh visible reaction avatars when

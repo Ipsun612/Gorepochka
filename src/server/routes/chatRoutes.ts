@@ -21,6 +21,15 @@ import {
 import { getAudio, pinAudio, resolveAudioMessages } from '../../services/audio.js';
 import { MINIAPP_CHAT_SLOTS, miniAppChatKey, resolveChatSlot } from '../chatSlots.js';
 import {
+  clearAllMediaForUser,
+  clearMediaForSlot,
+  persistAudioUpload,
+  persistVideoUpload,
+  pruneMediaForSlot,
+} from '../../services/media/index.js';
+import { deleteAudio } from '../../services/audio.js';
+import { deleteVideo } from '../../services/videos.js';
+import {
   appendFileBlock,
   buildChatContent,
   decodeFileAttachment,
@@ -40,6 +49,7 @@ export function registerChatRoutes(app: express.Express): void {
         cancelChatJobs(key);
         clearHistory(key);
       }
+      clearAllMediaForUser(identity);
       log.info({ userId: identity.userId, verified: identity.verified }, 'Mini App history cleared (all chats)');
     } else {
       const slot = resolveChatSlot(rawSlot);
@@ -50,6 +60,7 @@ export function registerChatRoutes(app: express.Express): void {
       const key = miniAppChatKey(identity.historyKey, slot);
       cancelChatJobs(key);
       clearHistory(key);
+      clearMediaForSlot(identity, slot);
       log.info({ userId: identity.userId, chatId: slot, verified: identity.verified }, 'Mini App chat cleared');
     }
     res.json({ ok: true });
@@ -252,8 +263,34 @@ export function registerChatRoutes(app: express.Express): void {
       if (audio) audio.committed = true;
       // Commit both turns only after successful generation; retries never leave
       // a duplicate or half-written user turn in model history.
-      appendHistory(chatKey, { role: 'user', content });
-      appendHistory(chatKey, { role: 'assistant', content: reply });
+      // botReaction stores Горепочка's auto reaction (display-only, never model context).
+      const userStored = appendHistory(chatKey, { role: 'user', content }, { botReaction: userReaction });
+      const assistantStored = appendHistory(chatKey, { role: 'assistant', content: reply });
+      // Durable cross-device media: copy committed uploads to MEDIA_DIR + chat_media
+      // so a second device can play them after restart. Best-effort; history stays truth.
+      // Verified turns free their tmpdir copy once durable; anon/dev keeps the
+      // process-local upload so follow-ups can still reattach it.
+      if (video) {
+        if (identity.verified) {
+          try {
+            const saved = await persistVideoUpload(identity, slot, video);
+            if (saved) void deleteVideo(video).catch(() => {});
+          } catch (error) {
+            log.warn({ userId: identity.userId, chatId: slot }, 'Durable video persist failed');
+          }
+        }
+      }
+      if (audio) {
+        if (identity.verified) {
+          try {
+            const saved = await persistAudioUpload(identity, slot, audio);
+            if (saved) void deleteAudio(audio).catch(() => {});
+          } catch (error) {
+            log.warn({ userId: identity.userId, chatId: slot }, 'Durable audio persist failed');
+          }
+        }
+      }
+      if (!video && !audio) pruneMediaForSlot(identity, slot);
       log.info({ userId: identity.userId, chatId: slot, verified: identity.verified }, 'Mini App chat completed');
       return {
         ok: true,
@@ -261,6 +298,8 @@ export function registerChatRoutes(app: express.Express): void {
         reply,
         messages,
         userReaction,
+        userMessageId: userStored?.id ?? null,
+        assistantMessageId: assistantStored?.id ?? null,
         model: config.OPENROUTER_MODEL,
         truncated,
         hasImage: Boolean(imageDataUrl),

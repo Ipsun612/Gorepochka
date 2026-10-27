@@ -30,7 +30,7 @@ import {
 } from './core/dom.js';
 import { api } from './core/api.js';
 import { loadChatMeta } from './chat/chatState.js';
-import { restore, applyBotProfile } from './chat/render.js';
+import { restore, clearChatDom, applyBotProfile } from './chat/render.js';
 import { initializeProfile } from './profile/profileActions.js';
 import { initializeCharacterProfile } from './character/characterActions.js';
 import { initializeLorebook } from './lorebook/lorebookActions.js';
@@ -82,6 +82,20 @@ async function boot() {
     if (Number.isInteger(meta.maxMessageLength) && meta.maxMessageLength > 0) inputEl.maxLength = meta.maxMessageLength;
     applyBotProfile(meta.bot);
     setStatus('online', 'на связи');
+    // Cross-device sync (best-effort, local cache stays for offline): chats first,
+    // then history for the (possibly updated) active slot.
+    try {
+      const { syncChatsFromServer } = await import('./chat/chatMetaSync.js');
+      const synced = await syncChatsFromServer();
+      if (synced) {
+        clearChatDom();
+        restore(state.activeId);
+      }
+    } catch {}
+    try {
+      const { syncHistoryFromServer } = await import('./history/historySync.js');
+      await syncHistoryFromServer(state.activeId);
+    } catch {}
   } catch (err) {
     setStatus('offline', 'нет соединения');
     toast(err.message || 'Не удалось подключиться. Откройте мини-приложение заново.');

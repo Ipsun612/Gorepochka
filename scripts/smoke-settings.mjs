@@ -16,6 +16,7 @@ Object.assign(process.env, {
   TELEGRAM_BOT_TOKEN: token,
   OPENROUTER_API_KEY: 'test-key-'.repeat(8),
   PROFILE_DB_PATH: filename,
+  MEDIA_DIR: path.join(directory, 'media'),
   ANON_MODE: 'off',
   WEBAPP_URL: '',
   ALLOWED_USER_IDS: '',

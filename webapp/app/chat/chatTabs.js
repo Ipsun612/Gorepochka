@@ -86,8 +86,17 @@ export function switchChat(id) {
   hideChatMenu();
   closeModal(false);
   clearAttachments(); // don't carry a staged attachment into another chat
+  const fromArchive = !isLiveSlot(state.activeId);
+  const toArchive = !isLiveSlot(id);
   state.activeId = id;
   saveChatMeta();
+  // Archives are local-only read-only snapshots: never touch the server for them.
+  // Skipping both tab-push and history-fetch when either side is an archive keeps
+  // legacy archive handling request-free (see smoke-webapp section 14).
+  if (!fromArchive && !toArchive) {
+    void import('./chatMetaSync.js').then((m) => m.pushChatsToServer().catch(() => {}));
+    void import('../history/historySync.js').then((m) => m.syncHistoryFromServer(id).catch(() => {}));
+  }
   clearChatDom();
   restore(id);
   renderTabs();
@@ -124,6 +133,7 @@ export async function createChat() {
     removeSlot(id);
     state.chats.push({ id, name: defaultChatName(id) });
     saveChatMeta();
+    void import('./chatMetaSync.js').then((m) => m.pushChatsToServer().catch(() => {}));
     management(false);
     switchChat(id);
     toast('Новый диалог создан');

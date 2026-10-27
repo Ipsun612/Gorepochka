@@ -93,11 +93,13 @@ in localStorage. Reloaded pending/failed bubbles honestly say to record again.
 
 ## Privacy, lifecycle and deployment
 
-Source files are removed after preparation. Private normalized MP3 expires after one
-hour by default, and is deleted on history eviction, chat cleanup and graceful shutdown.
-Registries/history are process-local: a restart invalidates IDs and old bubbles show
-an unavailable message. Durable playback, multi-server jobs and cross-device history
-require shared persistent storage/queues and are not part of this feature.
+Source files are removed after preparation. Committed voice persists durably in
+`MEDIA_DIR` + `chat_media` per `(user_id, slot)`, referenced as `audio_ref` and playable
+via `GET /api/audio/:id` + `/media` on a second device or after restart. Unreferenced
+media is pruned on history trim; slot/user media is removed on chat clear/delete.
+In-flight (uncommitted) uploads and anonymous dev recordings stay process-local with the
+1h TTL (`AUDIO_TTL_MS`); a restart invalidates those IDs and old pending bubbles show
+an unavailable message. Multi-server deployments must share `MEDIA_DIR` alongside SQLite.
 
 FFmpeg execution has byte/time/duration/output/concurrency/storage caps, bounded output,
 no shell and no network inputs or playlists. The server permits `microphone=(self)` and

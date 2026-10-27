@@ -6,6 +6,9 @@ import { emptyProfile, ProfileConflict, type ProfileUpdate, type SavedProfile } 
 import { emptyCharacter, traitsSchema, type CharacterUpdate, type SavedCharacter } from '../character/types.js';
 import { emptyLorebook, userEntriesSchema, type LorebookUpdate, type SavedLorebook } from '../lorebook/types.js';
 import { initializeSettingsTable, readSettingsRow, saveSettingsRow } from '../settings/store.js';
+import { initializeHistoryTables } from '../history/store.js';
+import { initializeChatMetaTables } from '../chatMeta/store.js';
+import { initializeMediaTables } from '../media/store.js';
 import type { SavedSettings, SettingsUpdate } from '../settings/types.js';
 
 /** Synchronous, short transactions: no network work or awaits while holding a lock. */
@@ -40,6 +43,9 @@ export class ProfileStore {
         updated_at TEXT NOT NULL
       )`);
       initializeSettingsTable(this.db);
+      initializeHistoryTables(this.db);
+      initializeChatMetaTables(this.db);
+      initializeMediaTables(this.db);
       if (filename !== ':memory:') fs.chmodSync(filename, 0o600);
     } catch (error) {
       this.db.close();
@@ -144,6 +150,10 @@ export class ProfileStore {
 
   readSettings(userId: number): SavedSettings {
     return readSettingsRow(this.db, userId);
+  }
+
+  getDb(): Database.Database {
+    return this.db;
   }
 
   saveSettings(userId: number, update: SettingsUpdate): SavedSettings {

@@ -224,8 +224,9 @@ Object.values(primaryLorebook)[0].comment = '<Название записи>';
 let savedLorebook = { entries: [], revision: 0, updatedAt: null, verified: true };
 let lorebookFailure = false;
 let lorebookConflict = false;
+let savedChats = { tabs: [{ slot: 1, name: 'Диалог 1' }], activeSlot: 1, revision: 0, updatedAt: null };
 globalThis.fetch = async (url, opts) => {
-  const pathn = url.startsWith('http') ? new URL(url).pathname : url;
+  const pathn = url.startsWith('http') ? new URL(url).pathname : String(url).split('?')[0];
   fetchLog.push({ path: pathn, body: opts && opts.body ? JSON.parse(opts.body) : null });
   if (pathn === '/api/new' && clearFailure)
     return { ok: false, status: 503, json: async () => ({ error: 'Test server unavailable' }) };
@@ -310,7 +311,27 @@ globalThis.fetch = async (url, opts) => {
     '/api/prompts': { ok: true, files: ['base.txt'] },
     '/api/chat': chatResponse,
     '/api/new': { ok: true },
+    '/api/chat/reaction': { ok: true, chatId: 1, messageId: 'test-id', userReaction: '❤️' },
   };
+  if (pathn === '/api/chats') {
+    const body = opts?.body ? JSON.parse(opts.body) : null;
+    if (body && Array.isArray(body.tabs)) {
+      savedChats = {
+        tabs: body.tabs,
+        activeSlot: body.activeSlot,
+        revision: savedChats.revision + 1,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return { ok: true, status: 200, json: async () => ({ ok: true, chats: structuredClone(savedChats) }) };
+  }
+  if (pathn === '/api/chat/history') {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, chatId: 1, messages: [] }),
+    };
+  }
   if (pathn === '/api/videos/12345678-1234-1234-1234-123456789abc') {
     return {
       ok: true,
@@ -355,9 +376,10 @@ const chatActions = await importApp('chat/chatActions.js');
 
 // --- assertions ------------------------------------------------------------
 // 1. User profile loads independently of metadata; neither overrides the persona.
-assert.deepEqual(
-  fetchLog.map((c) => c.path),
-  ['/api/meta', '/api/profile', '/api/settings'],
+assert.deepEqual(fetchLog.map((c) => c.path).slice(0, 3), ['/api/meta', '/api/profile', '/api/settings']);
+assert.ok(
+  fetchLog.some((c) => c.path === '/api/chats'),
+  'chat tabs sync attempted after boot',
 );
 assert.equal(els.get('botTitle').textContent, 'Горепочка');
 assert.equal(els.get('botAvatar').textContent, 'Г');
@@ -822,7 +844,21 @@ assert.equal(fetchLog.length, beforeArchive);
 chatActions.openDeleteModal();
 await chatActions.applyModal();
 assert.equal(store.has('miniapp-ui-history-v1#c9'), false);
-assert.equal(fetchLog.length, beforeArchive, 'deleting a non-server archive makes no invalid API request');
+// Archives are local-only: deletion must not send invalid slot IDs (9) to the
+// server. Benign async tab-sync PUTs / history GETs for live slots may still settle here.
+assert.ok(
+  fetchLog.slice(beforeArchive).every((call) => {
+    if (call.path === '/api/chats' && call.body) {
+      return (
+        Array.isArray(call.body.tabs) &&
+        call.body.tabs.every((t) => Number.isInteger(t.slot) && t.slot >= 1 && t.slot <= 5)
+      );
+    }
+    if (call.body && call.body.chatId !== undefined) return call.body.chatId >= 1 && call.body.chatId <= 5;
+    return true;
+  }),
+  'deleting a non-server archive makes no invalid API request',
+);
 assert.equal(els.get('input').disabled, false);
 
 // 15. In-flight file reads cannot reappear after removal or a chat switch.

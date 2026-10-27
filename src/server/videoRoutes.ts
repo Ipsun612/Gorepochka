@@ -13,12 +13,14 @@ import {
 import { cancelJob, cancelRequest, describeJob, getChatJob, findChatJob } from '../services/chatJobs.js';
 import { isRateLimited } from '../services/session.js';
 import { toUserError } from '../utils/security.js';
+import { profileStore } from '../services/profile/store.js';
+import { getMediaRow, mediaFilePath } from '../services/media/store.js';
 
 type Authenticate = (
   req: express.Request,
   requireClient: boolean,
   res: express.Response,
-) => { userId: number; historyKey: string } | null;
+) => { userId: number; historyKey: string; verified: boolean } | null;
 
 export function registerVideoRoutes(app: express.Express, authenticate: Authenticate): void {
   app.post('/api/videos', (req, res) => {
@@ -143,12 +145,37 @@ export function registerVideoRoutes(app: express.Express, authenticate: Authenti
     const identity = authenticate(req, true, res);
     if (!identity) return;
     const video = getVideo(String(req.params.id), identity.historyKey);
-    if (!video) {
-      res.status(404).json({ ok: false, error: 'Video expired or is unavailable. Please attach it again.' });
+    if (video) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ ok: true, video: describeVideo(video) });
       return;
     }
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ ok: true, video: describeVideo(video) });
+    if (identity.verified) {
+      try {
+        const saved = getMediaRow(profileStore().getDb(), identity.userId, String(req.params.id));
+        if (saved && (saved.kind === 'video' || saved.kind === 'video-note')) {
+          res.setHeader('Cache-Control', 'no-store');
+          res.json({
+            ok: true,
+            video: {
+              id: saved.id,
+              name: saved.name,
+              kind: saved.kind,
+              state: 'ready',
+              size: saved.size,
+              bytes: saved.bytes,
+              duration: saved.duration,
+              hasAudio: saved.hasAudio,
+              poster: saved.poster,
+            },
+          });
+          return;
+        }
+      } catch {
+        /* fall through to 404 */
+      }
+    }
+    res.status(404).json({ ok: false, error: 'Video expired or is unavailable. Please attach it again.' });
   });
 
   app.delete('/api/videos/:id', (req, res) => {
@@ -171,15 +198,30 @@ export function registerVideoRoutes(app: express.Express, authenticate: Authenti
     const identity = authenticate(req, true, res);
     if (!identity) return;
     const video = getVideo(String(req.params.id), identity.historyKey);
-    if (!video || video.state !== 'ready') {
-      res.status(404).json({ ok: false, error: 'Video expired or is not ready. Please attach it again.' });
+    if (video && video.state === 'ready') {
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.type('video/mp4');
+      res.sendFile(path.join(video.directory, 'video.mp4'), (err) => {
+        if (err && !res.headersSent) res.status(404).json({ ok: false, error: 'Video is no longer available.' });
+      });
       return;
     }
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.type('video/mp4');
-    res.sendFile(path.join(video.directory, 'video.mp4'), (err) => {
-      if (err && !res.headersSent) res.status(404).json({ ok: false, error: 'Video is no longer available.' });
-    });
+    if (identity.verified) {
+      try {
+        const saved = getMediaRow(profileStore().getDb(), identity.userId, String(req.params.id));
+        if (saved && (saved.kind === 'video' || saved.kind === 'video-note')) {
+          res.setHeader('Cache-Control', 'private, no-store');
+          res.type('video/mp4');
+          res.sendFile(mediaFilePath(saved.userId, saved.slot, saved.id, 'video.mp4'), (err) => {
+            if (err && !res.headersSent) res.status(404).json({ ok: false, error: 'Video is no longer available.' });
+          });
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    res.status(404).json({ ok: false, error: 'Video expired or is not ready. Please attach it again.' });
   });
 
   app.get('/api/chat-jobs/request/:requestId', (req, res) => {

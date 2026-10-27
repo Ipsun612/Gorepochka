@@ -343,6 +343,19 @@ export async function resolveAudioMessages(messages: ChatMessage[], owner: strin
       if (audio?.state === 'ready' && audio.bytes <= remaining) {
         included.add(audio.id);
         remaining -= audio.bytes;
+      } else if (!audio && /^\d+$/.test(owner)) {
+        try {
+          const { profileStore } = await import('./profile/store.js');
+          const { getMediaRow, mediaFilePath } = await import('./media/store.js');
+          const saved = getMediaRow(profileStore().getDb(), Number(owner), part.audioId);
+          if (saved && saved.kind === 'audio' && saved.bytes <= remaining) {
+            await fs.access(mediaFilePath(saved.userId, saved.slot, saved.id, 'audio.mp3'));
+            included.add(saved.id);
+            remaining -= saved.bytes;
+          }
+        } catch {
+          /* durable miss */
+        }
       }
     }
   }
@@ -355,11 +368,28 @@ export async function resolveAudioMessages(messages: ChatMessage[], owner: strin
           message.content.map(async (part) => {
             if (part.type !== 'audio_ref') return part;
             const audio = getAudio(part.audioId, owner);
-            if (!audio || audio.state !== 'ready' || !included.has(audio.id))
+            if (!audio || audio.state !== 'ready' || !included.has(audio.id)) {
+              if (/^\d+$/.test(owner)) {
+                try {
+                  const { profileStore } = await import('./profile/store.js');
+                  const { getMediaRow, mediaFilePath } = await import('./media/store.js');
+                  const saved = getMediaRow(profileStore().getDb(), Number(owner), part.audioId);
+                  if (saved && saved.kind === 'audio' && included.has(saved.id)) {
+                    const bytes = await fs.readFile(mediaFilePath(saved.userId, saved.slot, saved.id, 'audio.mp3'));
+                    return {
+                      type: 'input_audio' as const,
+                      input_audio: { data: bytes.toString('base64'), format: 'mp3' as const },
+                    };
+                  }
+                } catch {
+                  /* fall through */
+                }
+              }
               return {
                 type: 'text' as const,
                 text: '[Previously attached voice message unavailable: expired or outside the audio context budget. Ask the user to record it again if needed.]',
               };
+            }
             const release = pinAudio(audio);
             try {
               const bytes = await fs.readFile(path.join(audio.directory, 'audio.mp3'));
