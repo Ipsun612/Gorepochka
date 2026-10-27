@@ -15,7 +15,7 @@ export function loadPrimaryLorebook(
   } catch {
     // Never echo file content (which may contain private developer-authored lore).
     throw new Error(
-      'Could not load lorebooks/gorepochka.json: use valid entries with only key, comment (title, max 40 characters), content and constant; max 64 entries / 12000 content characters.',
+      'Could not load lorebooks/gorepochka.json: use valid entries with only key, comment (title, max 40 characters), content and constant; max 64 entries / 12000 content characters / 64 keywords per entry.',
     );
   }
 }

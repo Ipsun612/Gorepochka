@@ -8,6 +8,9 @@ export const LOREBOOK_LIMITS = {
   keywordChars: 60,
 } as const;
 export const PRIMARY_MAX_CHARS = 12000;
+// Developer-owned primary book needs full Russian declension forms per entry
+// (names/titles/phrases), unlike the tight per-user private budget.
+export const PRIMARY_MAX_KEYWORDS = 64;
 export const cleanLoreText = (text: string): string =>
   text
     .replace(/\r\n?/g, '\n')
@@ -16,7 +19,7 @@ export const cleanLoreText = (text: string): string =>
 export const normalizeKeyword = (text: string): string =>
   text.normalize('NFKC').toLowerCase().replace(/ё/g, 'е').replace(/\s+/gu, ' ').trim();
 
-function entrySchema(maxChars: number) {
+function entrySchema(maxChars: number, maxKeywords: number) {
   return z
     .object({
       // Missing titles in existing JSON/SQLite entries remain readable without rewriting storage.
@@ -38,7 +41,7 @@ function entrySchema(maxChars: number) {
               'Ключевое слово: от 1 до 60 символов.',
             ),
         )
-        .max(LOREBOOK_LIMITS.keywords)
+        .max(maxKeywords)
         .transform((keys) =>
           keys.filter(
             (key, index) => keys.findIndex((other) => normalizeKeyword(other) === normalizeKeyword(key)) === index,
@@ -61,7 +64,7 @@ function entrySchema(maxChars: number) {
     );
 }
 
-export const userEntrySchema = entrySchema(LOREBOOK_LIMITS.contentChars);
+export const userEntrySchema = entrySchema(LOREBOOK_LIMITS.contentChars, LOREBOOK_LIMITS.keywords);
 export const userEntriesSchema = z.array(userEntrySchema).max(LOREBOOK_LIMITS.entries);
 export const lorebookUpdateSchema = z
   .object({
@@ -74,7 +77,9 @@ export const lorebookUpdateSchema = z
   })
   .strict();
 export const primaryLorebookSchema = z
-  .object({ entries: z.record(z.string().regex(/^(0|[1-9]\d{0,5})$/), entrySchema(PRIMARY_MAX_CHARS)) })
+  .object({
+    entries: z.record(z.string().regex(/^(0|[1-9]\d{0,5})$/), entrySchema(PRIMARY_MAX_CHARS, PRIMARY_MAX_KEYWORDS)),
+  })
   .strict()
   .refine(
     ({ entries }) =>

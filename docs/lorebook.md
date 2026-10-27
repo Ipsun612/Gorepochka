@@ -33,7 +33,9 @@ filter, recursion, or user-configurable scan setting.
   letter/number/combining-mark/underscore boundaries prevent `мир` matching `пример`.
   There is no stemming: add forms such as `игра`, `игры`, `играешь` separately.
 - A matching entry appears once, even if several keys match. Duplicate keys are removed
-  on save after normalization; at most ten submitted keys are accepted, even if repeated.
+  on save after normalization; private additions accept at most ten submitted keys,
+  even if repeated. The developer-owned primary book accepts up to 64 keys per entry
+  for full Russian declension forms.
 
 ## Developer-owned primary book
 
@@ -45,7 +47,7 @@ prompt/character definition until the developer chooses to maintain additional l
 
 The file is outside `webapp/` and the ordered `prompts/` directory. Startup validates
 it and fails clearly if missing/malformed; content is never included in the error.
-Internal bounds: 256 KiB source file, 1–64 entries, up to ten keys per entry, up to
+Internal bounds: 256 KiB source file, 1–64 entries, up to 64 keys per entry, up to
 60 Unicode code points per key, and **12000 total content code points**. Unknown fields
 are rejected; `comment` is supported only as the entry title. All validated active entries fit this
 fixed source budget: no random selection, partial-entry truncation, or dropping of
