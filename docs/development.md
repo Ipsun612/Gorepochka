@@ -24,6 +24,7 @@
 | `npm run smoke:video-notes` | single/double-tap gestures, camera switching/rollback, desktop exclusion, late streams, limits + cleanup |
 | `npm run smoke:profile` | signed auth, SQLite user/character settings, 15-trait validation/conflicts, avatars, AI snapshots and prompt budgets (build first) |
 | `npm run smoke:lorebook` | strict schemas/Unicode, literal keywords, SQLite persistence, auth/isolation/conflicts and lore context snapshots (build first) |
+| `npm run smoke:settings` | signed theme API, SQLite migration/isolation/conflicts, theme UI and changelog data (build first) |
 | `npm run smoke` | build + run every smoke test |
 
 ## What the smoke tests cover
@@ -65,6 +66,11 @@ It uses a temporary real SQLite file and a local provider stub, not paid request
 The frontend smoke test covers lore cards, private counters/drafts/deletion, save/reload
 conflicts/failures, focus restoration and recording guards. Audio/video tests assert
 permanent lore on captionless media and keyword lore on typed follow-ups.
+
+`smoke:settings` checks signed ownership, existing-database migration, default light,
+strict validation, persistence, concurrent revisions, anonymous isolation, theme cache,
+failed saves, foreground refresh, Telegram chrome and release data. `smoke:webapp`
+also covers settings/changelog navigation, draft preservation and recording guards.
 
 Lore regressions validate the developer's primary JSON but use isolated keyword/content
 fixtures, so replacing the original placeholder text does not break activation tests.

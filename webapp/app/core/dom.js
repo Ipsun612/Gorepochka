@@ -20,6 +20,7 @@ export const menuRenameBtn = document.getElementById('menuRenameBtn');
 export const menuDeleteBtn = document.getElementById('menuDeleteBtn');
 export const menuClearBtn = document.getElementById('newChatBtn');
 export const modelBtn = document.getElementById('modelBtn');
+export const settingsBtn = document.getElementById('settingsBtn');
 export const lorebookBtn = document.getElementById('lorebookBtn');
 export const chatMenuBtn = document.getElementById('chatMenuBtn');
 export const archiveNotice = document.getElementById('archiveNotice');

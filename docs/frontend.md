@@ -2,7 +2,7 @@
 
 The Mini App in `webapp/` is bundler-free: plain `index.html`, CSS and ES modules
 under `webapp/app/`, grouped by feature (`core/`, `chat/`, `voice/`, `video/`,
-`media/`, `profile/`, `character/`, `lorebook/`, `reactions/`; `main.js` stays at
+`media/`, `profile/`, `character/`, `lorebook/`, `reactions/`, `settings/`; `main.js` stays at
 `app/` as the entry point). Chat, render and voice logic live in focused modules
 behind small barrel entries (`chat/chatActions.js`, `chat/render.js`,
 `voice/voiceActions.js`); the shared API shapes are documented in
@@ -31,10 +31,20 @@ trait, draft summary, changed-count badges, Save and reset-to-defaults. No free-
 personality editor exists. Tabs support arrow/Home/End navigation; radio controls retain
 native keyboard behavior and visible focus, with at least 48px-high choice targets.
 
-The right **Я** button and Telegram Settings still open My profile. Shared navigation
+The right **Я** button opens My profile; Telegram Settings opens the dedicated app
+settings screen. Shared navigation
 protects unsaved drafts when switching profiles and preserves chat drafts/attachments,
 scroll and background replies. Settings remain per-user across all five chats/devices,
 not localStorage. See [Character profile](./character-profile.md) and [Profiles](./profiles.md).
+
+## App settings and themes
+
+The chat overflow menu and native Telegram Settings open a separate grouped settings
+screen with a light/dark switch, version and Russian **Что нового** page. Light is the
+default. The dark palette covers chat, profiles, lorebook, dialogs and recording/media
+controls; supported Telegram chrome follows the selection. Settings uses the same
+navigation/recording guards as profiles. The last confirmed theme is cached per user
+for early paint, then reconciled with the authoritative server. See [Settings](./settings.md).
 
 ## Lorebook screen
 

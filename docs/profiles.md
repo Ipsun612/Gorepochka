@@ -3,7 +3,7 @@
 Tap your **avatar / Я button** at the upper right to open **Мой профиль**. The bot's
 left-side avatar opens a separate [character profile](./character-profile.md), with
 15 trait controls and no free-text personality editor. On Telegram 7.0+ the
-native Mini App **Settings** item opens the same screen; on 6.1+ the native Back button
+native Mini App **Settings** item opens [app settings](./settings.md); on 6.1+ the native Back button
 returns to the conversation. In-app buttons work on older clients and in a browser.
 
 ## Settings and synchronization
@@ -63,9 +63,9 @@ and restore consistently; do not copy just a live `.sqlite` file while ignoring 
 Multi-instance deployments need a shared repository/database implementation, not
 independent local files.
 
-The same database also has independent `character_profiles` and `lorebook_entries`
-tables; existing installations gain the latter automatically without rewriting profile
-data. Backups include saved personality settings and private lore additions too.
+The same database also has independent `character_profiles`, `lorebook_entries` and
+`app_settings` tables; existing installations gain new tables automatically without rewriting profile
+data. Backups include saved personality settings, private lore additions and theme choices.
 Deploy/back up the separate developer-owned `lorebooks/gorepochka.json` file alongside
 the application. See [Lorebook](./lorebook.md).
 

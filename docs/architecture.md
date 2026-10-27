@@ -39,7 +39,7 @@ The Mini App has a compact chat tab bar under the header. Each chat has its own
 dialog history (server-side key `<identity>#c<slot>` plus a local display cache per
 slot). Tap a tab to switch; **＋** creates a chat. The header **⋮** menu (also
 available by tapping the active tab) provides **Переименовать**, **Очистить
-историю**, **О модели**, and **Удалить диалог**. The book/globe icon immediately left
+историю**, **О модели**, **Настройки**, and **Удалить диалог**. The book/globe icon immediately left
 of the user's avatar opens the lorebook. Clear/delete require confirmation;
 the last live chat can be cleared rather than deleted. Free slots are reused within
 1–5 only after successful server cleanup. Failed cleanup leaves existing chat metadata
@@ -71,6 +71,7 @@ a stable canvas track for mobile camera switching. See [Video notes](./video-not
 | `GET`/`POST` | `/api/profile`, `/api/profile/sync`, `/api/profile/avatar` | user profiles — see [Profiles](./profiles.md) |
 | `GET`/`POST` | `/api/character-profile` | Горепочка's read-only identity + 15 per-user trait choices — see [Character profile](./character-profile.md) |
 | `GET`/`POST` | `/api/lorebook` | one read-only primary book + three private entries per user — see [Lorebook](./lorebook.md) |
+| `GET`/`POST` | `/api/settings` | per-user theme with revision checks — see [Settings](./settings.md) |
 | `POST`/`GET`/`DELETE` | `/api/videos…`, `/api/chat-jobs…` | video upload, status, media and jobs — see [Attachments](./attachments.md) |
 | `POST`/`GET`/`DELETE` | `/api/audio…` | voice upload, preparation, private playback and deletion |
 
@@ -89,9 +90,10 @@ a stable canvas track for mobile camera switching. See [Video notes](./video-not
 - `profile/` — persistent user profiles, Telegram sync + AI context; shared SQLite connection also stores character settings.
 - `character/` — 15-trait catalog, strict numeric validation, per-user settings + protected prompt guidance.
 - `lorebook/` — strict four-field entries (including optional title `comment`, max 40 characters), primary JSON loader, literal keyword selection, private settings and reference context.
+- `settings/` — validated, independently revisioned theme preferences in the shared profile database.
 - `botProfile.ts` — bot name + avatar sync.
 
-The profile and lorebook screens share `webapp/app/profile/profileNavigation.js` for chat visibility, focus,
+The profile, lorebook and settings screens share `webapp/app/profile/profileNavigation.js` for chat visibility, focus,
 native Back/Settings and closing confirmation. Character settings have their own revisions
 and table in `PROFILE_DB_PATH`, independent of user biography/birthday. Every `/api/chat`
 snapshots both profile contexts and selected lore before starting work; storage failure stops generation. Numeric

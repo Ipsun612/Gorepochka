@@ -41,7 +41,7 @@ export function registerProfileNavigation(id, screen) {
   });
   try {
     if (tg && initData && tg.isVersionAtLeast?.('7.0')) {
-      tg.SettingsButton.onClick(() => requestProfileNavigation('user'));
+      tg.SettingsButton.onClick(() => requestProfileNavigation('settings'));
       tg.SettingsButton.show();
     }
     if (tg && initData && tg.isVersionAtLeast?.('6.1'))

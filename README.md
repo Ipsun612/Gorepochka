@@ -49,6 +49,8 @@ message just points the user to the Mini App.
   See [Reactions](./docs/reactions.md).
 - **Per-user profiles** — persisted name/username/biography context, private avatars,
   SQLite storage. See [Profiles](./docs/profiles.md).
+- **App settings** — Telegram-inspired settings with light/dark themes synchronized
+  across a user's devices, application version and a Russian changelog. See [Settings](./docs/settings.md).
 - **Горепочка's profile** — tap her avatar for her biography and 15 personality traits,
   arranged in three groups of labelled choices; no free-text personality editor. Settings
   are private to each user, persist across devices and apply to all five chats without
@@ -135,7 +137,7 @@ telegram bot/
 │   └── utils/              # allowlist/sanitizing helpers + secret-redacting logger
 ├── webapp/                 # bundler-free Mini App (index.html, CSS, app/**/*.js ES modules)
 │   │                       # app/ is grouped by feature: core/, chat/, voice/, video/,
-│   │                       # media/, profile/, character/, lorebook/, reactions/
+│   │                       # media/, profile/, character/, lorebook/, reactions/, settings/
 │   └── package.json        # only marks app/**/*.js as ES modules — no build step
 ├── prompts/                # ordered system prompt files (01_…, 02_…, 03_…) + README.md
 ├── assets/                   # /start welcome photo (welcome.jpg/.png, see assets/README.md)
@@ -180,6 +182,7 @@ startup if something is invalid. Every variable and its default is documented in
 | `npm run smoke:video-notes` | single/double-tap gestures, camera switching/rollback, PC exclusion, limits + cleanup |
 | `npm run smoke:profile` | signed auth, SQLite user/character settings, 15 traits + AI context (build first) |
 | `npm run smoke:lorebook` | lore matching, strict limits, SQLite persistence, auth/isolation + AI context (build first) |
+| `npm run smoke:settings` | theme sync, isolation, conflicts, early cache + changelog data (build first) |
 | `npm run smoke` | build + run every smoke test |
 
 `npm run smoke` is the pre-deploy check. See [Development](./docs/development.md).
@@ -194,6 +197,7 @@ startup if something is invalid. Every variable and its default is documented in
 - [AI behavior](./docs/ai-behavior.md) — prompts, hidden tags and typing speed
 - [Reactions](./docs/reactions.md) — emoji picker, AI reaction tag and local storage
 - [Profiles](./docs/profiles.md) — settings, persistence, privacy and the profile API
+- [Settings](./docs/settings.md) — synchronized themes, app version and changelog maintenance
 - [Character profile](./docs/character-profile.md) — Горепочка's biography, 15 editable traits and immutable core rules
 - [Lorebook](./docs/lorebook.md) — primary JSON template, private additions, keyword matching and context integration
 - [Security](./docs/security.md) — auth, allowlist, rate limiting and upload hardening

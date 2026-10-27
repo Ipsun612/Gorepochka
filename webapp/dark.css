@@ -1,0 +1,190 @@
+/* App-wide dark palette; only presentation changes, never message/media data. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --pink: #f18cb7;
+  --pink-deep: #f3a1c6;
+  --pink-soft: #493343;
+  --blue: #6fa8ef;
+  --blue-deep: #9bc5ff;
+  --blue-soft: #263e55;
+  --ink: #edf3fa;
+  --muted: #adbed0;
+  --line: #354554;
+}
+[data-theme='dark'] body {
+  background: #111a23;
+}
+[data-theme='dark'] .app {
+  background:
+    url('./assets/wallpaper.svg') center / 360px 360px repeat,
+    linear-gradient(145deg, #222835, #17212b);
+  box-shadow: 0 0 70px #0005;
+}
+[data-theme='dark'] .header,
+[data-theme='dark'] .composer,
+[data-theme='dark'] .chat-menu,
+[data-theme='dark'] .reaction-picker,
+[data-theme='dark'] .modal-card,
+[data-theme='dark'] .profile-card,
+[data-theme='dark'] .trait-tabs,
+[data-theme='dark'] .latest-btn,
+[data-theme='dark'] .camera-flip {
+  background: #202e3b;
+  border-color: var(--line);
+}
+[data-theme='dark'] .icon-btn:hover:not(:disabled),
+[data-theme='dark'] .chat-menu-item:hover,
+[data-theme='dark'] .chat-menu-item:focus-visible {
+  background: #344858;
+}
+[data-theme='dark'] .tab,
+[data-theme='dark'] .chat-add,
+[data-theme='dark'] .date-separator {
+  background: #283a4acc;
+  color: #d5e3f4;
+}
+[data-theme='dark'] .tab.active,
+[data-theme='dark'] .tab:hover {
+  background: #3d4356;
+  color: #ffd0e4;
+  border-color: #74536d;
+}
+[data-theme='dark'] .welcome,
+[data-theme='dark'] .typing {
+  background: #22303ef2;
+  border-color: var(--line);
+  color: var(--muted);
+}
+[data-theme='dark'] .chip,
+[data-theme='dark'] .attach-preview,
+[data-theme='dark'] .file-label,
+[data-theme='dark'] .voice-track,
+[data-theme='dark'] .bubble-file,
+[data-theme='dark'] .lore-entry,
+[data-theme='dark'] .trait-tab,
+[data-theme='dark'] .trait-option span,
+[data-theme='dark'] .modal-btn {
+  background: #293d4e;
+  border-color: var(--line);
+  color: var(--ink);
+}
+[data-theme='dark'] .bubble,
+[data-theme='dark'] .msg.bot .bubble {
+  background: #283847;
+}
+[data-theme='dark'] .msg.user .bubble {
+  background: #345276;
+}
+[data-theme='dark'] .bubble.has-video-note,
+[data-theme='dark'] .msg.user .bubble.has-video-note {
+  background: transparent;
+}
+[data-theme='dark'] .meta,
+[data-theme='dark'] .bubble-file-snippet,
+[data-theme='dark'] .video-status,
+[data-theme='dark'] .voice-status,
+[data-theme='dark'] .typing {
+  color: #c3d3e5;
+}
+[data-theme='dark'] .bubble pre {
+  background: #17232f;
+  color: #edf3fa;
+}
+[data-theme='dark'] .bubble a {
+  color: #aad0ff;
+}
+[data-theme='dark'] .reaction-pill {
+  background: #33495b;
+  border-color: #60798d;
+}
+[data-theme='dark'] .msg.bot .reaction-pill,
+[data-theme='dark'] .trait-option input:checked + span {
+  background: #51394c;
+  color: #ffd0e4;
+  border-color: #a57091;
+}
+[data-theme='dark'] .trait-tab[aria-selected='true'] {
+  background: #3a5872;
+  border-color: #80a9d7;
+  color: #fff;
+}
+[data-theme='dark'] .birthday-fields input,
+[data-theme='dark'] .birthday-fields select,
+[data-theme='dark'] #profileBio,
+[data-theme='dark'] .lore-input,
+[data-theme='dark'] .modal-input {
+  background: #172632;
+  border-color: #506577;
+  color: var(--ink);
+}
+[data-theme='dark'] .profile-error,
+[data-theme='dark'] .archive-notice {
+  background: #4d303d;
+  border-color: #9c6076;
+  color: #ffd6e0;
+}
+[data-theme='dark'] .danger,
+[data-theme='dark'] .lore-remove {
+  color: #ffabbc;
+}
+[data-theme='dark'] .modal-btn.danger,
+[data-theme='dark'] .modal-btn.primary,
+[data-theme='dark'] .send-btn,
+[data-theme='dark'] .voice-play {
+  color: #fff;
+  background: #345f9f;
+}
+[data-theme='dark'] .modal-btn.danger {
+  background: #a44059;
+}
+[data-theme='dark'] .video-action {
+  background: #293d4e;
+  border-color: #506577;
+  color: #b9d7ff;
+}
+[data-theme='dark'] .video-action:hover:not(:disabled),
+[data-theme='dark'] .attach-remove:hover {
+  background: #40566b;
+}
+[data-theme='dark'] .record-toggle.is-holding,
+[data-theme='dark'] .record-toggle.is-holding:hover {
+  background: #345f9f;
+  color: #fff;
+}
+[data-theme='dark'] .settings-screen {
+  background: #17212b;
+}
+[data-theme='dark'] .settings-group,
+[data-theme='dark'] .changelog-card {
+  background: #202e3b;
+}
+[data-theme='dark'] button.settings-row:hover {
+  background: #304354;
+}
+.theme-changing body,
+.theme-changing .app,
+.theme-changing .header,
+.theme-changing .composer,
+.theme-changing .bubble,
+.theme-changing .profile-card,
+.theme-changing .settings-screen,
+.theme-changing .settings-group,
+.theme-changing .changelog-card {
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-changing body,
+  .theme-changing .app,
+  .theme-changing .header,
+  .theme-changing .composer,
+  .theme-changing .bubble,
+  .theme-changing .profile-card,
+  .theme-changing .settings-screen,
+  .theme-changing .settings-group,
+  .theme-changing .changelog-card {
+    transition: none;
+  }
+}

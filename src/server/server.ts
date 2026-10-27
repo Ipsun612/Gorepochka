@@ -10,6 +10,7 @@ import { registerChatRoutes } from './routes/chatRoutes.js';
 import { registerProfileRoutes } from './profileRoutes.js';
 import { registerCharacterRoutes } from './characterRoutes.js';
 import { registerLorebookRoutes } from './lorebookRoutes.js';
+import { registerSettingsRoutes } from './settingsRoutes.js';
 import { registerVideoRoutes } from './videoRoutes.js';
 import { registerAudioRoutes } from './audioRoutes.js';
 import { registerStaticFrontend } from './staticFrontend.js';
@@ -36,6 +37,7 @@ export function createServer(): express.Express {
   registerProfileRoutes(app);
   registerCharacterRoutes(app);
   registerLorebookRoutes(app);
+  registerSettingsRoutes(app);
 
   registerStaticFrontend(app);
   registerErrorHandler(app);

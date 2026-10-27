@@ -2,7 +2,8 @@
 
 Tap the **bot avatar on the left of the Mini App header** to open **Профиль Горепочки**.
 This is an in-app screen, not a modification of Telegram's native bot profile. The **Я**
-button and Telegram Settings still open the user's separate **Мой профиль** screen.
+button opens the user's separate **Мой профиль** screen; Telegram Settings opens
+[app settings](./settings.md).
 
 The profile reuses the user-profile cards, large avatar, pink/blue palette, sticky Save
 header and independent scrolling. The avatar uses the existing public bot-photo proxy,
@@ -31,7 +32,7 @@ draft. **Вернуть исходный характер** restores defaults in
 reset. Failures preserve edits. A stale revision produces a conflict with a reload
 action; reloading or leaving asks before discarding edits. Save blocks navigation until
 the result is known. Escape and supported Telegram Back work; native Settings also
-respects unsaved character edits before switching to My profile.
+respects unsaved character edits before switching to app settings.
 
 Opening either profile preserves the active chat, message draft, attachments and scroll.
 Recording navigation uses the existing discard confirmation. Background replies continue

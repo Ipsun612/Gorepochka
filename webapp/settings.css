@@ -1,0 +1,180 @@
+/* Telegram-inspired grouped settings, using the app's own accent colors. */
+.settings-screen {
+  overflow: hidden;
+  border-radius: 24px;
+  background: #f1f3f6;
+}
+.settings-header {
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 1px 0 #0000000d;
+}
+.settings-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0 28px;
+}
+.settings-brand {
+  text-align: center;
+  padding: 28px 16px 22px;
+}
+.settings-logo {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 12px;
+  border-radius: 24px;
+  background: linear-gradient(140deg, var(--pink), var(--blue));
+  color: #fff;
+  font-size: 34px;
+  font-weight: 700;
+}
+.settings-brand h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.settings-brand p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.settings-section-title {
+  margin: 18px 20px 8px;
+  color: var(--blue-deep);
+  font-size: 13px;
+  font-weight: 650;
+}
+.settings-group {
+  background: #fff;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 18px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+button.settings-row:hover {
+  background: #f3f6fa;
+}
+.settings-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #758fdd;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+.changelog-icon {
+  background: #e879ad;
+  font-size: 20px;
+}
+.settings-row-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-row-text strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+.settings-row-text small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.settings-chevron {
+  color: var(--muted);
+  font-size: 27px;
+}
+.theme-switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  border: 0;
+  border-radius: 18px;
+  background: #c8ced7;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.theme-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #0004;
+  transition: transform 0.18s ease;
+}
+.theme-switch:checked {
+  background: var(--blue);
+}
+.theme-switch:checked::before {
+  transform: translateX(20px);
+}
+.theme-switch:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.settings-status {
+  margin: 8px 20px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.settings-retry {
+  min-height: 44px;
+  margin: 0 20px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-deep);
+}
+.changelog-title {
+  margin: 24px 20px 12px;
+  font-size: 19px;
+}
+.changelog-card {
+  margin: 0 0 12px;
+  padding: 18px 20px;
+  background: #fff;
+}
+.changelog-card h3 {
+  margin: 0 0 12px;
+  color: var(--blue-deep);
+  font-size: 15px;
+}
+.changelog-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.changelog-card li {
+  padding: 3px 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch,
+  .theme-switch::before {
+    transition: none;
+  }
+}

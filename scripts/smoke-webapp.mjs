@@ -8,6 +8,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { File } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
+import { checkSettingsNavigation, checkSettingsRecordingGuard } from './smoke-settings-navigation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(here, '..', 'webapp', 'app');
@@ -305,6 +306,7 @@ globalThis.fetch = async (url, opts) => {
   }
   const bodies = {
     '/api/meta': { ok: true, model: 'test-model', bot: { name: 'TestBot' } },
+    '/api/settings': { ok: true, settings: { theme: 'light', revision: 0, updatedAt: null } },
     '/api/prompts': { ok: true, files: ['base.txt'] },
     '/api/chat': chatResponse,
     '/api/new': { ok: true },
@@ -355,7 +357,7 @@ const chatActions = await importApp('chat/chatActions.js');
 // 1. User profile loads independently of metadata; neither overrides the persona.
 assert.deepEqual(
   fetchLog.map((c) => c.path),
-  ['/api/meta', '/api/profile'],
+  ['/api/meta', '/api/profile', '/api/settings'],
 );
 assert.equal(els.get('botTitle').textContent, 'Горепочка');
 assert.equal(els.get('botAvatar').textContent, 'Г');
@@ -363,6 +365,7 @@ assert.match(html, /<html lang="ru">/);
 assert.match(html, /GorCOgramm — Горепочка/);
 assert.ok(!html.includes('modelPill') && !html.includes('bg-blobs'));
 assert.equal(document.documentElement.style['--app-height'], '800px');
+await checkSettingsNavigation({ els, state, keydown, importApp });
 
 // 2. Default chat created + metadata persisted with the SAME storage keys.
 const meta = JSON.parse(store.get('miniapp-chats-v1'));
@@ -1330,6 +1333,11 @@ els.get('voiceKeep').dispatch('click');
 lorebookActions.openLorebook();
 assert.equal(state.profileOpen, false, 'lorebook cannot hide a live voice draft');
 els.get('voiceKeep').dispatch('click');
+checkSettingsRecordingGuard({
+  els,
+  state,
+  openSettings: (await importApp('settings/settingsActions.js')).openSettings,
+});
 
 // Upload and chat transport are stubbed, but the real send/render/cache graph runs.
 const audioId = 'abcdef12-1234-1234-1234-123456789abc';

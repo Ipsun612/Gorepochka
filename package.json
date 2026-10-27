@@ -25,7 +25,8 @@
     "smoke:video-notes": "node scripts/smoke-video-notes.mjs",
     "smoke:profile": "node scripts/smoke-profile.mjs",
     "smoke:lorebook": "node scripts/smoke-lorebook.mjs",
-    "smoke": "npm run build && npm run smoke:webapp && npm run smoke:recorder && npm run smoke:video-notes && npm run smoke:files && npm run smoke:tags && npm run smoke:server && npm run smoke:videos && npm run smoke:audio && npm run smoke:profile && npm run smoke:lorebook"
+    "smoke:settings": "node scripts/smoke-settings.mjs && node scripts/smoke-settings-ui.mjs",
+    "smoke": "npm run build && npm run smoke:webapp && npm run smoke:recorder && npm run smoke:video-notes && npm run smoke:files && npm run smoke:tags && npm run smoke:server && npm run smoke:videos && npm run smoke:audio && npm run smoke:profile && npm run smoke:lorebook && npm run smoke:settings"
   },
   "engines": {
     "node": ">=18"

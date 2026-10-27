@@ -5,6 +5,8 @@ import { config } from '../../config/config.js';
 import { emptyProfile, ProfileConflict, type ProfileUpdate, type SavedProfile } from './types.js';
 import { emptyCharacter, traitsSchema, type CharacterUpdate, type SavedCharacter } from '../character/types.js';
 import { emptyLorebook, userEntriesSchema, type LorebookUpdate, type SavedLorebook } from '../lorebook/types.js';
+import { initializeSettingsTable, readSettingsRow, saveSettingsRow } from '../settings/store.js';
+import type { SavedSettings, SettingsUpdate } from '../settings/types.js';
 
 /** Synchronous, short transactions: no network work or awaits while holding a lock. */
 export class ProfileStore {
@@ -37,6 +39,7 @@ export class ProfileStore {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`);
+      initializeSettingsTable(this.db);
       if (filename !== ':memory:') fs.chmodSync(filename, 0o600);
     } catch (error) {
       this.db.close();
@@ -137,6 +140,14 @@ export class ProfileStore {
         return this.readLorebook(userId);
       })
       .immediate();
+  }
+
+  readSettings(userId: number): SavedSettings {
+    return readSettingsRow(this.db, userId);
+  }
+
+  saveSettings(userId: number, update: SettingsUpdate): SavedSettings {
+    return saveSettingsRow(this.db, userId, update);
   }
 
   close(): void {

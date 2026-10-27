@@ -16,17 +16,23 @@ if (tg && initData) {
   try {
     tg.expand();
   } catch (e) {}
-  if (tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
+}
+
+export function syncTelegramColors(theme) {
+  const dark = theme === 'dark';
+  const header = dark ? '#202b38' : '#f7faff';
+  const background = dark ? '#17212b' : '#edf0fc';
+  if (tg && initData && tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
     try {
-      tg.setHeaderColor('#f7faff');
+      tg.setHeaderColor(header);
     } catch (e) {}
     try {
-      tg.setBackgroundColor('#edf0fc');
+      tg.setBackgroundColor(background);
     } catch (e) {}
   }
-  if (tg.isVersionAtLeast && tg.isVersionAtLeast('7.10')) {
+  if (tg && initData && tg.isVersionAtLeast && tg.isVersionAtLeast('7.10')) {
     try {
-      tg.setBottomBarColor('#edf0fc');
+      tg.setBottomBarColor(background);
     } catch (e) {}
   }
 }

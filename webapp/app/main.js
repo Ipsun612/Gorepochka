@@ -14,6 +14,7 @@ import {
   menuDeleteBtn,
   menuClearBtn,
   modelBtn,
+  settingsBtn,
   modalEl,
   modalInputEl,
   modalOkBtn,
@@ -33,6 +34,8 @@ import { restore, applyBotProfile } from './chat/render.js';
 import { initializeProfile } from './profile/profileActions.js';
 import { initializeCharacterProfile } from './character/characterActions.js';
 import { initializeLorebook } from './lorebook/lorebookActions.js';
+import { initializeSettings } from './settings/settingsActions.js';
+import { initializeTheme } from './settings/theme.js';
 import { initializeVoice } from './voice/voiceActions.js';
 import { initializeReactions, closeReactionPicker } from './reactions/reactions.js';
 import {
@@ -161,7 +164,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (chatMenuEl.classList.contains('hidden')) return;
-  const items = [menuRenameBtn, menuClearBtn, modelBtn, menuDeleteBtn].filter(
+  const items = [menuRenameBtn, menuClearBtn, modelBtn, settingsBtn, menuDeleteBtn].filter(
     (el) => el.style.display !== 'none' && !el.disabled,
   );
   if (e.key === 'Escape' || e.key === 'Tab') {
@@ -226,3 +229,5 @@ void boot();
 initializeProfile();
 initializeCharacterProfile();
 initializeLorebook();
+initializeSettings();
+initializeTheme();
