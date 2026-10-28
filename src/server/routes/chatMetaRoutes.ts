@@ -1,37 +1,24 @@
 import type express from 'express';
-import { resolveIdentity } from '../requestIdentity.js';
+import { identityRateLimit } from '../middleware/identityRateLimit.js';
 import { ChatMetaConflict, readChatMeta, saveChatMeta } from '../../services/chatMeta/index.js';
 import { chatMetaUpdateSchema } from '../../services/chatMeta/types.js';
 import { log } from '../../utils/logger.js';
 
-const hits = new Map<string, { count: number; until: number }>();
-
 export function registerChatMetaRoutes(app: express.Express): void {
-  app.use('/api/chats', (req, res, next) => {
-    res.setHeader('Cache-Control', 'private, no-store');
-    const identity = resolveIdentity(req, true, res);
-    if (!identity) return;
-    const now = Date.now();
-    const previous = hits.get(identity.historyKey);
-    const current = previous && previous.until > now ? previous : { count: 0, until: now + 60000 };
-    current.count++;
-    hits.delete(identity.historyKey);
-    hits.set(identity.historyKey, current);
-    while (hits.size > 10000) hits.delete(hits.keys().next().value!);
-    if (current.count > 60) {
-      res.status(429).json({ ok: false, error: 'Слишком много запросов диалогов. Подождите минуту.' });
-      return;
-    }
-    res.locals.chatsIdentity = identity;
-    next();
-  });
+  app.use(
+    '/api/chats',
+    identityRateLimit({
+      localsKey: 'chatsIdentity',
+      message: 'Слишком много запросов диалогов. Подождите минуту.',
+    }),
+  );
 
   app.get('/api/chats', (_req, res) => {
     try {
       const meta = readChatMeta(res.locals.chatsIdentity);
       res.json({ ok: true, chats: meta });
-    } catch {
-      log.error('Chat meta read failed');
+    } catch (err) {
+      log.error({ err: err instanceof Error ? err.message : String(err) }, 'Chat meta read failed');
       res.status(503).json({ ok: false, error: 'Не удалось загрузить диалоги. Попробуйте ещё раз.' });
     }
   });
@@ -54,7 +41,7 @@ export function registerChatMetaRoutes(app: express.Express): void {
         });
         return;
       }
-      log.error('Chat meta save failed');
+      log.error({ err: error instanceof Error ? error.message : String(error) }, 'Chat meta save failed');
       res.status(503).json({ ok: false, error: 'Не удалось сохранить диалоги. Попробуйте ещё раз.' });
     }
   });

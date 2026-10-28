@@ -69,6 +69,17 @@ export function registerVideoRoutes(app: express.Express, authenticate: Authenti
       invalid = true;
       if (video) void deleteVideo(video);
       if (!res.headersSent) res.status(status).json({ ok: false, error });
+      try {
+        req.unpipe(parser);
+      } catch {
+        /* ignore */
+      }
+      try {
+        parser.destroy();
+      } catch {
+        /* ignore */
+      }
+      req.resume();
     };
     const timeout = setTimeout(() => {
       fail(408, 'Video upload timed out. Please try again.');

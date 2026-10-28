@@ -59,6 +59,17 @@ export function registerAudioRoutes(app: express.Express): void {
       invalid = true;
       if (audio) void deleteAudio(audio);
       if (!res.headersSent) res.status(status).json({ ok: false, error });
+      try {
+        req.unpipe(parser);
+      } catch {
+        /* ignore */
+      }
+      try {
+        parser.destroy();
+      } catch {
+        /* ignore */
+      }
+      req.resume();
     };
     const timeout = setTimeout(() => {
       fail(408, 'Время загрузки истекло. Попробуйте ещё раз.');

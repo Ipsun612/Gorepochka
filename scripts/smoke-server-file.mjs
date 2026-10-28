@@ -64,7 +64,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const post = async (pathname, body) => {
   const res = await fetch(base + pathname, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Miniapp-Client-Id': clientId },
     body: JSON.stringify(body),
   });
   return { status: res.status, json: await res.json().catch(() => null) };
@@ -77,7 +77,6 @@ try {
   // A. Captionless text file is accepted and injected into the model prompt.
   const ok = await post('/api/chat', {
     chatId: 1,
-    clientId,
     message: '',
     fileName: 'Unit.cs',
     file: fileDataUrl('class Unit {}'),
@@ -99,7 +98,6 @@ try {
   // B. A message + a file are both present.
   const ok2 = await post('/api/chat', {
     chatId: 1,
-    clientId,
     message: 'review this',
     fileName: 'notes.md',
     file: fileDataUrl('# Title'),
@@ -112,7 +110,6 @@ try {
   // C. An image data URL sent as a "file" is rejected (not text).
   const bad = await post('/api/chat', {
     chatId: 1,
-    clientId,
     fileName: 'x.png',
     file: 'data:image/png;base64,iVBORw0KGgo=',
   });
@@ -123,7 +120,7 @@ try {
   const split = '<Разделить сообщение>';
   const nextText = 'я'.repeat(40);
   providerReply = `${split} привет <Неизвестный тег> ${split} ${split} ${nextText} ${split} пока <Поставить реакцию: [❤️]> ${split}`;
-  const tagged = await post('/api/chat', { chatId: 1, clientId, message: 'ответь по частям' });
+  const tagged = await post('/api/chat', { chatId: 1, message: 'ответь по частям' });
   assert.equal(tagged.status, 200, JSON.stringify(tagged.json));
   assert.deepEqual(tagged.json.messages, [
     { text: 'привет', delayMs: 0 },
@@ -135,7 +132,7 @@ try {
   assert.ok(!JSON.stringify(tagged.json).includes('<'));
 
   providerReply = 'продолжение';
-  const followup = await post('/api/chat', { chatId: 1, clientId, message: 'продолжи' });
+  const followup = await post('/api/chat', { chatId: 1, message: 'продолжи' });
   assert.equal(followup.status, 200);
   const previousAssistant = captured.messages.filter((m) => m.role === 'assistant').pop();
   assert.equal(previousAssistant.content, tagged.json.reply, 'all parts kept as one clean assistant turn');
@@ -147,7 +144,7 @@ try {
 
   // E. Other slots are independent; tags in USER input are never interpreted/hidden.
   const userWithTag = `покажи ${split} <Поставить реакцию: 🔥> как текст`;
-  const other = await post('/api/chat', { chatId: 2, clientId, message: userWithTag });
+  const other = await post('/api/chat', { chatId: 2, message: userWithTag });
   assert.equal(other.status, 200);
   assert.equal(captured.messages.filter((m) => m.role === 'assistant').length, 0);
   assert.equal(lastHuman().content, userWithTag);
@@ -158,7 +155,7 @@ try {
     getHistory(miniAppChatKey(`anon:${clientId}`, 2)).filter((m) => m.role === 'assistant');
   const assistantCount = assistantHistory().length;
   providerReply = `${split}<Неизвестный тег><>`;
-  const empty = await post('/api/chat', { chatId: 2, clientId, message: 'ещё' });
+  const empty = await post('/api/chat', { chatId: 2, message: 'ещё' });
   assert.equal(empty.status, 502);
   assert.match(empty.json.error, /empty response/i);
   assert.ok(!JSON.stringify(empty.json).includes('<'));

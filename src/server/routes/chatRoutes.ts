@@ -3,7 +3,14 @@ import { config } from '../../config/config.js';
 import { completeChat, UserFacingError } from '../../services/openrouter.js';
 import { log } from '../../utils/logger.js';
 import { sanitizeInput, toUserError } from '../../utils/security.js';
-import { appendHistory, buildMessages, clearHistory, getHistory, isRateLimited } from '../../services/session.js';
+import {
+  appendHistory,
+  buildMessages,
+  chatGeneration,
+  clearHistory,
+  getHistory,
+  isRateLimited,
+} from '../../services/session.js';
 import { processAssistantReply } from '../../services/tags/index.js';
 import { resolveIdentity } from '../requestIdentity.js';
 import { getProfileContext } from '../../services/profile/context.js';
@@ -227,9 +234,17 @@ export function registerChatRoutes(app: express.Express): void {
     // Each Mini App chat slot has its own private dialog history, isolated
     // from the other slots (slot keys "<historyKey>#c<slot>").
     if (!lockChat(chatKey)) {
+      if (typeof requestId === 'string') {
+        const existing = findChatJob(identity.historyKey, requestId);
+        if (existing && existing.chatKey === chatKey) {
+          res.status(202).json({ ok: true, ...describeJob(existing) });
+          return;
+        }
+      }
       res.status(409).json({ ok: false, error: 'A reply is already being generated in this chat.' });
       return;
     }
+    const generation = chatGeneration(chatKey);
     const releaseVideo = video ? pinVideo(video) : () => {};
     const releaseAudio = audio ? pinAudio(audio) : () => {};
     const work = async (signal?: AbortSignal) => {
@@ -259,6 +274,7 @@ export function registerChatRoutes(app: express.Express): void {
         throw new UserFacingError('AI provider returned an empty response. Please try again.');
       }
       if (signal?.aborted) throw new UserFacingError('Обработка сообщения отменена.');
+      if (generation !== chatGeneration(chatKey)) throw new UserFacingError('Обработка сообщения отменена.');
       if (video) video.committed = true;
       if (audio) audio.committed = true;
       // Commit both turns only after successful generation; retries never leave
@@ -322,6 +338,16 @@ export function registerChatRoutes(app: express.Express): void {
       if (typeof requestId !== 'string' || !/^[a-zA-Z0-9-]{8,80}$/.test(requestId)) {
         release();
         res.status(400).json({ ok: false, error: 'Send a valid requestId for media conversations.' });
+        return;
+      }
+      const duplicate = findChatJob(identity.historyKey, requestId);
+      if (duplicate) {
+        release();
+        if (duplicate.chatKey !== chatKey) {
+          res.status(409).json({ ok: false, error: 'Request belongs to another chat.' });
+          return;
+        }
+        res.status(202).json({ ok: true, ...describeJob(duplicate) });
         return;
       }
       try {

@@ -26,7 +26,7 @@ message just points the user to the Mini App.
   live in the secured web app. See [Architecture](./docs/architecture.md).
 - **Five parallel chats** — tab bar with rename/clear/delete, per-chat durable history (35 pairs/slot, SQLite) and cross-device tab names.
 - **Image attachments** — any common format, previewed then re-encoded to JPEG
-  server-side for vision models. Images sync across devices via the durable history API. See [Attachments](./docs/attachments.md).
+  server-side for vision models. Recent images sync across devices via the durable history API (older turns keep a placeholder to bound storage/payloads). See [Attachments](./docs/attachments.md).
 - **Text-file attachments** — `.txt`, `.md`, `.json`, code and config files injected
   into the prompt as context. Name + snippet sync across devices; the model keeps the full text.
 - **Video attachments** — streamed uploads, FFmpeg-normalized MP4, native `video_url`
@@ -64,7 +64,7 @@ message just points the user to the Mini App.
   Active private facts accompany the current message (including media), so they can
   inform the dialogue without becoming system instructions or permanent history.
 - **Hardened by default** — Telegram `initData` HMAC auth, optional allowlist, rate
-  limiting and upload sanitizing. See [Security](./docs/security.md).
+  limiting, idempotent chat jobs and upload sanitizing. `ANON_MODE=on` fails startup with a public `WEBAPP_URL`. See [Security](./docs/security.md).
 
 ## Quick start
 

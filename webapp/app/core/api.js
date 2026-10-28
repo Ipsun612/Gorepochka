@@ -12,8 +12,19 @@ export function getClientId() {
   } catch (e) {}
   if (stored && /^[a-zA-Z0-9-]{8,64}$/.test(stored)) return stored;
   const bytes = new Uint8Array(12);
-  if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = (Math.random() * 256) | 0;
+  if (window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    // No WebCrypto (very old browser): mix time + Math.random; dev-mode only.
+    try {
+      console.warn('WebCrypto unavailable; using weak dev-mode client id');
+    } catch (e) {}
+    let seed = Date.now() % 2147483647;
+    for (let i = 0; i < bytes.length; i++) {
+      seed = (seed * 16807) % 2147483647;
+      bytes[i] = ((Math.random() * 256) | 0) ^ (seed & 0xff);
+    }
+  }
   const id = `web-${Array.from(bytes, (x) => `000${x.toString(36)}`.slice(-3)).join('')}`;
   try {
     localStorage.setItem(LS_CLIENT_KEY, id);
@@ -21,13 +32,11 @@ export function getClientId() {
   return id;
 }
 
-// Common payload for chat-scoped endpoints: chat slot + auth context.
-// Telegram mode -> initData header-checked server-side; anon dev mode -> per-browser bucket.
-export function chatPayload(chatId, { includeInitData = true } = {}) {
-  const payload = { chatId };
-  if (includeInitData && initData) payload.initData = initData;
-  if (!initData) payload.clientId = getClientId(); // anon dev mode: per-browser bucket
-  return payload;
+// Common payload for chat-scoped endpoints: chat slot only. Auth travels in
+// headers (X-Telegram-Init-Data / X-Miniapp-Client-Id); bodies can be logged,
+// cached and persisted, so bearer credentials must not be duplicated there.
+export function chatPayload(chatId) {
+  return { chatId };
 }
 
 export function apiHeaders(json = true) {
@@ -45,10 +54,12 @@ export function apiHeaders(json = true) {
 export async function api(path, body, options = {}) {
   const headers = apiHeaders();
   // Never hang forever: abort a stalled request so boot can show an explicit
-  // error instead of staying stuck on "connecting…". Generous ceiling that
-  // comfortably exceeds the server's OPENROUTER_TIMEOUT_MS (60s) for chat.
+  // error instead of staying stuck on "connecting…". Default comfortably
+  // exceeds the server's OPENROUTER_TIMEOUT_MS (60s); media chat polling uses
+  // fast job endpoints, while the initial chat POST may wait for the model.
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 75000;
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = ctrl ? setTimeout(() => ctrl.abort(), 75000) : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
   const abort = () => {
     if (ctrl) ctrl.abort();
   };

@@ -16,7 +16,9 @@ handling and OpenRouter calls. `src/bot/bot.ts` never calls OpenRouter.
   The redirect text is in Russian; the Mini App UI itself is
   in Russian.
 - The Mini App (`webapp/app/`) reads `Telegram.WebApp.initData` and POSTs
-  `{ message, chatId, image?, file?, fileName?, initData }` to `/api/chat`.
+  `{ message, chatId, image?, file?, fileName? }` to `/api/chat` with the auth
+  in headers (`X-Telegram-Init-Data`, or `X-Miniapp-Client-Id` in anonymous dev
+  mode) — never in the body.
 - `src/server/server.ts` validates `initData` (`webappAuth.ts`), enforces allowlist +
   rate limit + input sanitizing, keeps a private history per chat slot
   (`services/session.ts`), calls OpenRouter, and processes hidden assistant tags. It
@@ -85,7 +87,8 @@ a stable canvas track for mobile camera switching. See [Video notes](./video-not
 - `openrouter.ts` — OpenRouter API client (timeout, sanitized errors).
 - `images.ts` — image uploads: any format → JPEG (`sharp`).
 - `textfiles.ts` — text-file uploads: base64 → validated, capped text.
-- `videos.ts` — private video uploads (tmpdir) + FFmpeg/FFprobe normalization; committed clips persist via `media/`.
+- `ffmpeg.ts` — shared FFmpeg/FFprobe binary paths (project-local packages unless overridden).
+- `videos.ts` — private video uploads (lazy tmpdir) + FFmpeg/FFprobe normalization; committed clips persist via `media/`.
 - `audio.ts` — private audio uploads (tmpdir), MP3 normalization, waveforms and bounded native context; committed voice persists via `media/`.
 - `media/` — durable `chat_media` + `MEDIA_DIR` files per `(user_id, slot, id)`; orphan prune on trim/clear; fallback for model resolve + private playback.
 - `history/display.ts` — content → display (message/file split, inline images).

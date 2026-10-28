@@ -5,15 +5,11 @@ import { promises as fs, createWriteStream } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
-import ffmpeg from 'ffmpeg-static';
-import ffprobe from 'ffprobe-static';
 import { config } from '../config/config.js';
+import { ffmpegPath, ffprobePath } from './ffmpeg.js';
 import { UserFacingError, type ChatMessage } from './openrouter.js';
 import { sanitizeFileName } from './textfiles.js';
 import { log } from '../utils/logger.js';
-
-export const ffmpegPath = config.FFMPEG_PATH || ffmpeg || 'ffmpeg';
-export const ffprobePath = config.FFPROBE_PATH || ffprobe.path;
 
 export interface VideoUpload {
   id: string;
@@ -41,18 +37,28 @@ export interface VideoUpload {
 const uploads = new Map<string, VideoUpload>();
 let active = 0;
 const running = new Set<Promise<void>>();
-const root = fs.mkdtemp(path.join(os.tmpdir(), 'telegram-miniapp-video-'));
-// Restrict the directory even on systems where the umask is permissive.
-void root.then((dir) => fs.chmod(dir, 0o700)).catch(() => {});
+// Created lazily like audio: importing the server does not create unused directories.
+let root: Promise<string> | undefined;
+function videoRoot(): Promise<string> {
+  return (root ??= fs.mkdtemp(path.join(os.tmpdir(), 'telegram-miniapp-video-')).then(async (dir) => {
+    await fs.chmod(dir, 0o700).catch(() => {});
+    return dir;
+  }));
+}
 
 /** Argument arrays only; no shell, stdin, user-controlled paths, or network protocols. */
-async function run(binary: string, args: string[], signal: AbortSignal): Promise<string> {
+async function run(
+  binary: string,
+  args: string[],
+  signal: AbortSignal,
+  timeoutMs: number = config.VIDEO_PROCESS_TIMEOUT_MS,
+): Promise<string> {
   if (signal.aborted) throw new UserFacingError('Video processing cancelled.');
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     const abort = () => child.kill('SIGKILL');
-    const timer = setTimeout(abort, config.VIDEO_PROCESS_TIMEOUT_MS);
+    const timer = setTimeout(abort, timeoutMs);
     signal.addEventListener('abort', abort, { once: true });
     // Never retain arbitrary decoder diagnostics or expose file paths to users.
     child.stdout.on('data', (chunk: Buffer) => {
@@ -95,14 +101,14 @@ export async function createVideo(
   name: string,
   kind: VideoUpload['kind'] = 'attachment',
 ): Promise<VideoUpload> {
-  if (active >= config.VIDEO_MAX_CONCURRENT || uploads.size + active >= config.VIDEO_MAX_STORED) {
+  if (active >= config.VIDEO_MAX_CONCURRENT || uploads.size >= config.VIDEO_MAX_STORED) {
     throw new UserFacingError('Video storage or processing is busy. Please try again later.');
   }
   // Reserve synchronously before awaiting filesystem work.
   active++;
   const id = crypto.randomUUID();
   try {
-    const directory = path.join(await root, id);
+    const directory = path.join(await videoRoot(), id);
     await fs.mkdir(directory, { mode: 0o700 });
     const now = Date.now();
     const video: VideoUpload = {
@@ -180,26 +186,33 @@ let demuxerWhitelist: Promise<string> | undefined;
 function safeDemuxers(): Promise<string> {
   // Discover the installed build's formats instead of maintaining a finite
   // extension/container allowlist. Exclude manifests and external file lists.
-  demuxerWhitelist ??= run(ffprobePath, ['-hide_banner', '-demuxers'], new AbortController().signal).then((text) => {
-    const blocked = new Set([
-      'hls',
-      'applehttp',
-      'dash',
-      'concat',
-      'sdp',
-      'rtsp',
-      'image2',
-      'image2pipe',
-      'avisynth',
-      'vapoursynth',
-    ]);
-    const names = text.split('\n').flatMap((line) => {
-      const match = /^\s*D\s+(\S+)/.exec(line);
-      return match ? match[1]!.split(',').filter((name) => !blocked.has(name)) : [];
+  // A failed probe must not poison the cache: retry on the next upload.
+  if (!demuxerWhitelist) {
+    const probe = run(ffprobePath, ['-hide_banner', '-demuxers'], new AbortController().signal).then((text) => {
+      const blocked = new Set([
+        'hls',
+        'applehttp',
+        'dash',
+        'concat',
+        'sdp',
+        'rtsp',
+        'image2',
+        'image2pipe',
+        'avisynth',
+        'vapoursynth',
+      ]);
+      const names = text.split('\n').flatMap((line) => {
+        const match = /^\s*D\s+(\S+)/.exec(line);
+        return match ? match[1]!.split(',').filter((name) => !blocked.has(name)) : [];
+      });
+      if (!names.length) throw new UserFacingError('Could not discover supported video formats.');
+      return names.join(',');
     });
-    if (!names.length) throw new UserFacingError('Could not discover supported video formats.');
-    return names.join(',');
-  });
+    demuxerWhitelist = probe;
+    probe.catch(() => {
+      if (demuxerWhitelist === probe) demuxerWhitelist = undefined;
+    });
+  }
   return demuxerWhitelist;
 }
 
@@ -207,6 +220,10 @@ async function prepare(video: VideoUpload): Promise<void> {
   const input = path.join(video.directory, 'source');
   const output = path.join(video.directory, 'video.mp4');
   const signal = video.controller.signal;
+  // One overall deadline for the whole pipeline: five sequential FFmpeg/FFprobe
+  // passes must not each consume the full per-process timeout.
+  const deadline = Date.now() + config.VIDEO_PROCESS_TIMEOUT_MS;
+  const remaining = () => Math.max(5000, deadline - Date.now());
   const safeInput = ['-protocol_whitelist', 'file,pipe', '-format_whitelist', await safeDemuxers()];
   // Playlists and external-reference containers are intentionally not allowed.
   const metadata = JSON.parse(
@@ -225,6 +242,7 @@ async function prepare(video: VideoUpload): Promise<void> {
         input,
       ],
       signal,
+      remaining(),
     ),
   ) as ProbeResult;
   const streams = metadata.streams ?? [];
@@ -265,8 +283,10 @@ async function prepare(video: VideoUpload): Promise<void> {
         '-',
       ],
       signal,
+      remaining(),
     );
     const times = [...progress.matchAll(/^out_time_us=(\d+)$/gm)].map((match) => Number(match[1]) / 1000000);
+    if (!times.length) throw new UserFacingError('This recording has no readable video frames.');
     duration = Math.max(0, ...times);
     if (!duration) throw new UserFacingError('This recording has no readable video frames.');
   }
@@ -340,13 +360,19 @@ async function prepare(video: VideoUpload): Promise<void> {
       output,
     ],
     signal,
+    remaining(),
   );
   video.bytes = (await fs.stat(output)).size;
   if (video.bytes > config.VIDEO_MAX_OUTPUT_BYTES) {
     throw new UserFacingError('Converted video exceeds the AI payload limit. Please use a shorter clip.');
   }
   const converted = JSON.parse(
-    await run(ffprobePath, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', output], signal),
+    await run(
+      ffprobePath,
+      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', output],
+      signal,
+      remaining(),
+    ),
   ) as ProbeResult;
   const actualDuration = Number(converted.format?.duration);
   // Never silently send a truncated conversion (e.g. when -fs was reached).
@@ -375,6 +401,7 @@ async function prepare(video: VideoUpload): Promise<void> {
       path.join(video.directory, 'poster.jpg'),
     ],
     signal,
+    remaining(),
   );
   const poster = await fs.readFile(path.join(video.directory, 'poster.jpg'));
   video.poster = `data:image/jpeg;base64,${poster.toString('base64')}`;
@@ -405,7 +432,7 @@ async function receiveAndPrepare(video: VideoUpload, stream: Readable): Promise<
     }
     video.state = 'preparing';
     await prepare(video);
-    if (video.controller.signal.aborted) return;
+    if (video.controller.signal.aborted || !uploads.has(video.id)) return;
     video.state = 'ready';
   } catch (err) {
     if (uploads.has(video.id)) {
@@ -438,7 +465,18 @@ export function pinVideo(video: VideoUpload): () => void {
 
 export function clearChatVideos(chatKey: string, keep?: Set<string>): void {
   for (const video of uploads.values()) {
-    if (video.chatKey === chatKey && (!keep || (video.committed && !keep.has(video.id)))) void deleteVideo(video);
+    if (video.pins > 0) continue;
+    if (video.chatKey !== chatKey) continue;
+    if (!keep) {
+      void deleteVideo(video);
+      continue;
+    }
+    if (keep.has(video.id)) continue;
+    // History references only committed uploads. Drop abandoned ready uploads
+    // too, but never interrupt an upload/conversion still in flight.
+    if (video.committed || (video.state !== 'uploading' && video.state !== 'preparing')) {
+      void deleteVideo(video);
+    }
   }
 }
 
@@ -518,15 +556,17 @@ export async function resolveVideoMessages(messages: ChatMessage[], owner: strin
   );
 }
 
-setInterval(() => {
+const videoSweep = setInterval(() => {
   for (const video of uploads.values()) if (!video.pins && video.expiresAt <= Date.now()) void deleteVideo(video);
-}, 30000).unref();
+}, 30000);
+videoSweep.unref();
 
 export async function shutdownVideos(): Promise<void> {
+  clearInterval(videoSweep);
   await Promise.all([...uploads.values()].map(deleteVideo));
   await Promise.allSettled([...running]);
-  const directory = await root;
-  await fs.rm(directory, { recursive: true, force: true }).catch(() => {});
+  if (root) await fs.rm(await root, { recursive: true, force: true }).catch(() => {});
+  root = undefined;
 }
 
 void checkVideoTools()

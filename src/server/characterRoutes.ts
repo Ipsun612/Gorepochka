@@ -1,32 +1,21 @@
 import type express from 'express';
-import { resolveIdentity } from './requestIdentity.js';
+import { identityRateLimit } from './middleware/identityRateLimit.js';
 import { describeCharacter, saveCharacter } from '../services/character/index.js';
 import { characterUpdateSchema } from '../services/character/types.js';
 import { ProfileConflict } from '../services/profile/types.js';
 import { log } from '../utils/logger.js';
 
-const hits = new Map<string, { count: number; until: number }>();
 export function registerCharacterRoutes(app: express.Express): void {
-  app.use('/api/character-profile', (req, res, next) => {
-    res.setHeader('Cache-Control', 'private, no-store');
-    const identity = resolveIdentity(req, true, res);
-    if (!identity) return;
-    const now = Date.now();
-    const hit = hits.get(identity.historyKey);
-    const current = hit && hit.until > now ? hit : { count: 0, until: now + 60000 };
-    current.count++;
-    hits.delete(identity.historyKey);
-    hits.set(identity.historyKey, current);
-    while (hits.size > 10000) hits.delete(hits.keys().next().value!);
-    if (current.count > 60) {
-      res.status(429).json({ ok: false, error: 'Слишком много запросов профиля. Подождите минуту.' });
-      return;
-    }
-    res.locals.characterIdentity = identity;
-    next();
-  });
-  const failure = (res: express.Response) => {
-    log.error('Character profile operation failed');
+  app.use(
+    '/api/character-profile',
+    identityRateLimit({
+      localsKey: 'characterIdentity',
+      message: 'Слишком много запросов профиля. Подождите минуту.',
+    }),
+  );
+  const failure = (res: express.Response, err: unknown) => {
+    // Message only: never database rows, traits or settings drafts.
+    log.error({ err: err instanceof Error ? err.message : String(err) }, 'Character profile operation failed');
     res
       .status(503)
       .json({ ok: false, error: 'Не удалось прочитать или сохранить характер Горепочки. Попробуйте ещё раз.' });
@@ -34,8 +23,8 @@ export function registerCharacterRoutes(app: express.Express): void {
   app.get('/api/character-profile', (_req, res) => {
     try {
       res.json(describeCharacter(res.locals.characterIdentity));
-    } catch {
-      failure(res);
+    } catch (err) {
+      failure(res, err);
     }
   });
   app.post('/api/character-profile', (req, res) => {
@@ -56,7 +45,7 @@ export function registerCharacterRoutes(app: express.Express): void {
           code: 'CHARACTER_CONFLICT',
           error: 'Характер изменён на другом устройстве. Загрузите актуальную версию перед сохранением.',
         });
-      else failure(res);
+      else failure(res, error);
     }
   });
 }

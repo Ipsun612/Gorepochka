@@ -108,7 +108,12 @@ async function refresh(): Promise<void> {
       const largest = photos.photos[0]?.[photos.photos[0].length - 1];
       if (largest) {
         const file = await botApi<FileInfo>('getFile', { file_id: largest.file_id });
-        if (file.file_path) {
+        // Do not let an upstream path change origin, query or directories.
+        if (
+          file.file_path &&
+          /^[a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+$/.test(file.file_path) &&
+          !file.file_path.includes('..')
+        ) {
           const ctrl = new AbortController();
           const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
           try {

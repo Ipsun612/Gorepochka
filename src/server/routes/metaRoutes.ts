@@ -50,8 +50,22 @@ export function registerMetaRoutes(app: express.Express): void {
 
   // Proxied bot avatar (profile photo). Same-origin so the token never reaches the browser.
   // Non-sensitive decorative bytes (bot's own public profile photo) — kept open
-  // but only for image content it fetched itself.
+  // but only for image content it fetched itself. Per-IP budget so anonymous
+  // callers cannot turn Telegram fetches into an amplification loop (6h cache).
+  const avatarHits = new Map<string, { count: number; until: number }>();
   app.get('/api/bot-avatar', async (req, res) => {
+    const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+    const now = Date.now();
+    const prev = avatarHits.get(ip);
+    const cur = prev && prev.until > now ? prev : { count: 0, until: now + 60000 };
+    cur.count += 1;
+    avatarHits.delete(ip);
+    avatarHits.set(ip, cur);
+    while (avatarHits.size > 5000) avatarHits.delete(avatarHits.keys().next().value!);
+    if (cur.count > 120) {
+      res.status(429).json({ ok: false, error: 'Too many requests. Please wait a minute.' });
+      return;
+    }
     try {
       const avatar = await getBotAvatar();
       if (!avatar) {

@@ -5,6 +5,8 @@ import { startServer } from './server/server.js';
 import { shutdownVideos } from './services/videos.js';
 import { shutdownAudio } from './services/audio.js';
 import { profileStore, closeProfileStore } from './services/profile/store.js';
+import { stopSessionSweep } from './services/session.js';
+import { stopJobSweep } from './services/chatJobs.js';
 import { loadPrimaryLorebook } from './services/lorebook/primary.js';
 
 async function main(): Promise<void> {
@@ -21,6 +23,8 @@ async function main(): Promise<void> {
   const stop = async (signal: string) => {
     log.info({ signal }, 'Shutting down…');
     bot.stop(signal);
+    stopSessionSweep();
+    stopJobSweep();
     await shutdownVideos();
     await shutdownAudio();
     closeProfileStore();

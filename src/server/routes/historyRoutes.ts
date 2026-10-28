@@ -1,5 +1,6 @@
 import type express from 'express';
 import { resolveIdentity, type RequestIdentity } from '../requestIdentity.js';
+import { identityRateLimit } from '../middleware/identityRateLimit.js';
 import { MINIAPP_CHAT_SLOTS, resolveChatSlot } from '../chatSlots.js';
 import { readHistory, saveMessageReaction } from '../../services/history/index.js';
 import { toDisplayTurn } from '../../services/history/display.js';
@@ -8,8 +9,6 @@ import { getVideo } from '../../services/videos.js';
 import { readMedia } from '../../services/media/index.js';
 import { normalizeReaction } from '../../services/tags/reaction.js';
 import { log } from '../../utils/logger.js';
-
-const hits = new Map<string, { count: number; until: number }>();
 
 function videoDescriptorFor(
   identity: RequestIdentity,
@@ -97,24 +96,13 @@ export function registerHistoryRoutes(app: express.Express): void {
     res.locals.historyIdentity = identity;
     next();
   });
-  app.use('/api/chat/reaction', (req, res, next) => {
-    res.setHeader('Cache-Control', 'private, no-store');
-    const identity = resolveIdentity(req, true, res);
-    if (!identity) return;
-    const now = Date.now();
-    const previous = hits.get(identity.historyKey);
-    const current = previous && previous.until > now ? previous : { count: 0, until: now + 60000 };
-    current.count++;
-    hits.delete(identity.historyKey);
-    hits.set(identity.historyKey, current);
-    while (hits.size > 10000) hits.delete(hits.keys().next().value!);
-    if (current.count > 60) {
-      res.status(429).json({ ok: false, error: 'Слишком много запросов реакций. Подождите минуту.' });
-      return;
-    }
-    res.locals.historyIdentity = identity;
-    next();
-  });
+  app.use(
+    '/api/chat/reaction',
+    identityRateLimit({
+      localsKey: 'historyIdentity',
+      message: 'Слишком много запросов реакций. Подождите минуту.',
+    }),
+  );
 
   app.get('/api/chat/history', (req, res) => {
     try {
@@ -153,7 +141,7 @@ export function registerHistoryRoutes(app: express.Express): void {
         }),
       });
     } catch (error) {
-      log.error('History read failed');
+      log.error({ err: error instanceof Error ? error.message : String(error) }, 'History read failed');
       res.status(503).json({ ok: false, error: 'Не удалось загрузить историю. Попробуйте ещё раз.' });
     }
   });
@@ -183,8 +171,8 @@ export function registerHistoryRoutes(app: express.Express): void {
         return;
       }
       res.json({ ok: true, chatId: slot, messageId: saved.id, userReaction: saved.userReaction });
-    } catch {
-      log.error('Reaction save failed');
+    } catch (err) {
+      log.error({ err: err instanceof Error ? err.message : String(err) }, 'Reaction save failed');
       res.status(503).json({ ok: false, error: 'Не удалось сохранить реакцию. Попробуйте ещё раз.' });
     }
   });

@@ -14,8 +14,11 @@ export function miniAppChatKey(historyKey: string, slot: number): string {
  * Validate an optional multi-chat slot from the request body.
  * Returns the default slot (1) when omitted, the validated integer when
  * present, or null when the value is not an integer within 1..MAX.
+ * Numeric strings (query params, JSON-stringified clients) are coerced.
  */
 export function resolveChatSlot(raw: unknown): number | null {
   if (raw === undefined) return 1;
-  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 1 && raw <= MINIAPP_CHAT_SLOTS ? raw : null;
+  const n =
+    typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : NaN;
+  return Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MINIAPP_CHAT_SLOTS ? (n as number) : null;
 }

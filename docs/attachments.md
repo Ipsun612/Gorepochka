@@ -33,8 +33,13 @@ picked file against `MAX_IMAGE_BYTES` (exposed by `/api/meta`) so oversized file
 rejected with a friendly message before upload.
 
 Uploaded images live in the durable per-slot history (`chat_messages`, 35 pairs).
-`GET /api/chat/history` returns the full JPEG dataURL inline, so a second device
-displays the same picture. See [Configuration](./configuration.md#image-attachments). The Mini App pre-checks the
+To bound memory, SQLite size and model payloads, only the most recent image turns
+keep full JPEG bytes (last 5 image turns in storage, last 5 images / 4 MiB for the
+model); older images become a short placeholder. `GET /api/chat/history` returns
+the full JPEG dataURL inline for recent turns, so a second device displays the
+same picture. Model text is additionally capped (~90k chars: system + recent
+history + profile + current) so a full history can never blow the provider
+context. See [Configuration](./configuration.md#image-attachments). The Mini App pre-checks the
 picked file against `MAX_IMAGE_BYTES` (exposed by `/api/meta`) so oversized files are
 rejected with a friendly message before upload.
 

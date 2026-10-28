@@ -9,7 +9,7 @@ function resolveWebappDir(): string {
 // Static Mini App frontend (must be registered AFTER /api routes).
 export function registerStaticFrontend(app: express.Express): void {
   const dir = resolveWebappDir();
-  app.use(express.static(dir, { extensions: ['html'], maxAge: '5m' }));
+  app.use(express.static(dir, { extensions: ['html'], maxAge: '5m', dotfiles: 'deny', index: false }));
   // SPA fallback: unknown non-API GETs serve index.html (if present).
   // NOTE: plain middleware (no '*' pattern) for Express 4/5 compatibility.
   app.use((req, res, next) => {

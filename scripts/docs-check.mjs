@@ -15,13 +15,20 @@ const read = (file) => readFileSync(path.join(root, file), 'utf8');
 const failures = [];
 
 // 1. Config keys: single source of truth across config.ts / .env.example / configuration.md.
-const configKeys = [...read('src/config/config.ts').matchAll(/^ +([A-Z][A-Z0-9_]+):/gm)].map((m) => m[1]);
+// Top-level envSchema keys are exactly 4-space indented (`    KEY:`); nested paths
+// and refine blocks use different shapes and must not match.
+const configKeys = [...read('src/config/config.ts').matchAll(/^ {4}([A-Z][A-Z0-9_]+):/gm)].map((m) => m[1]);
 assert.ok(configKeys.length > 40, `expected dozens of env keys in config.ts, found ${configKeys.length}`);
+assert.equal(new Set(configKeys).size, configKeys.length, 'duplicate env keys in src/config/config.ts');
 const exampleKeys = new Set([...read('.env.example').matchAll(/^([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]));
 const documentedKeys = new Set([...read('docs/configuration.md').matchAll(/`([A-Z][A-Z0-9_]+)`/g)].map((m) => m[1]));
 for (const key of configKeys) {
   if (!exampleKeys.has(key)) failures.push(`config key ${key} missing from .env.example`);
   if (!documentedKeys.has(key)) failures.push(`config key ${key} missing from docs/configuration.md`);
+}
+// Reverse check: no stale keys linger in .env.example after a rename/removal.
+for (const key of exampleKeys) {
+  if (!configKeys.includes(key)) failures.push(`.env.example key ${key} missing from src/config/config.ts`);
 }
 
 // 2. Script tables: README.md lists every package script; docs mention only real scripts.

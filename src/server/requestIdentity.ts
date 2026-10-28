@@ -26,13 +26,11 @@ export function resolveIdentity(
   requireClientId: boolean,
   res: express.Response,
 ): RequestIdentity | null {
+  // Auth travels in headers only (X-Telegram-Init-Data / X-Miniapp-Client-Id).
+  // Bodies are logged, cached and persisted in places headers never go, so a
+  // bearer credential must not be duplicated there.
   const header = req.get('X-Telegram-Init-Data');
-  const initData =
-    typeof header === 'string' && header !== ''
-      ? header
-      : typeof req.body?.initData === 'string'
-        ? req.body.initData
-        : undefined;
+  const initData = typeof header === 'string' && header !== '' ? header : undefined;
   if (initData !== undefined) {
     const result = validateInitData(initData);
     if (!result.ok || !result.user) {
@@ -61,7 +59,7 @@ export function resolveIdentity(
     return null;
   }
   if (!requireClientId) return { userId: anonBucketId('anon'), historyKey: 'anon:meta', verified: false };
-  const clientId = req.get('X-Miniapp-Client-Id') || req.body?.clientId;
+  const clientId = req.get('X-Miniapp-Client-Id');
   if (typeof clientId !== 'string' || !ANON_CLIENT_ID.test(clientId)) {
     res.status(400).json({ ok: false, error: 'Missing or invalid client session. Please reload the app.' });
     return null;

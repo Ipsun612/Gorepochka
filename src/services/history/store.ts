@@ -86,25 +86,29 @@ export function appendHistoryRow(
 ): StoredHistoryMessage {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
-  const seq = nextHistorySeq(db, userId, slot);
-  db.prepare(
-    `INSERT INTO chat_messages (id, user_id, slot, role, content, user_reaction, bot_reaction, created_at, seq)
+  const insert = db.transaction(() => {
+    const seq = nextHistorySeq(db, userId, slot);
+    db.prepare(
+      `INSERT INTO chat_messages (id, user_id, slot, role, content, user_reaction, bot_reaction, created_at, seq)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    String(userId),
-    slot,
-    msg.role,
-    JSON.stringify(msg.content),
-    existing?.userReaction ?? null,
-    existing?.botReaction ?? null,
-    createdAt,
-    seq,
-  );
-  db.prepare(
-    `DELETE FROM chat_messages WHERE user_id = ? AND slot = ? AND id NOT IN
+    ).run(
+      id,
+      String(userId),
+      slot,
+      msg.role,
+      JSON.stringify(msg.content),
+      existing?.userReaction ?? null,
+      existing?.botReaction ?? null,
+      createdAt,
+      seq,
+    );
+    db.prepare(
+      `DELETE FROM chat_messages WHERE user_id = ? AND slot = ? AND id NOT IN
      (SELECT id FROM chat_messages WHERE user_id = ? AND slot = ? ORDER BY seq DESC LIMIT ?)`,
-  ).run(String(userId), slot, String(userId), slot, cap);
+    ).run(String(userId), slot, String(userId), slot, cap);
+    pruneStoredImages(db, userId, slot);
+  });
+  insert();
   return {
     id,
     role: msg.role as 'user' | 'assistant',
@@ -117,6 +121,43 @@ export function appendHistoryRow(
 
 export function clearHistorySlot(db: Database.Database, userId: number, slot: number): void {
   db.prepare('DELETE FROM chat_messages WHERE user_id = ? AND slot = ?').run(String(userId), slot);
+}
+
+// Bound durable image bytes: keep full data URLs only for the most recent
+// image turns; older ones become a short placeholder so one chat cannot pin
+// tens of MB in SQLite/RAM. Display still reports them via surrounding text.
+const KEEP_IMAGE_TURNS = 5;
+const OMITTED_IMAGE_TEXT = '[Older image omitted to respect the media context size limit.]';
+
+function hasImageUrl(content: unknown): boolean {
+  return Array.isArray(content) && (content as Array<{ type?: string }>).some((part) => part?.type === 'image_url');
+}
+
+function stripImageUrls(content: ChatMessage['content']): ChatMessage['content'] {
+  if (!Array.isArray(content)) return content;
+  return (content as Array<{ type?: string; text?: string }>).map((part) =>
+    part?.type === 'image_url' ? { type: 'text', text: OMITTED_IMAGE_TEXT } : part,
+  ) as ChatMessage['content'];
+}
+
+export function pruneStoredImages(db: Database.Database, userId: number, slot: number): void {
+  const rows = db
+    .prepare('SELECT id, content FROM chat_messages WHERE user_id = ? AND slot = ? ORDER BY seq DESC')
+    .all(String(userId), slot) as Array<{ id: string; content: string }>;
+  let seen = 0;
+  const update = db.prepare('UPDATE chat_messages SET content = ? WHERE id = ?');
+  for (const row of rows) {
+    let content: unknown;
+    try {
+      content = JSON.parse(row.content) as unknown;
+    } catch {
+      continue;
+    }
+    if (!hasImageUrl(content)) continue;
+    seen += 1;
+    if (seen <= KEEP_IMAGE_TURNS) continue;
+    update.run(JSON.stringify(stripImageUrls(content as ChatMessage['content'])), row.id);
+  }
 }
 
 export function clearAllHistory(db: Database.Database, userId: number): void {

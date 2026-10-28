@@ -99,7 +99,7 @@ export function sendMessage(preset) {
           payload.requestId = requestId;
           data = await api('/api/chat', payload, { signal: controller.signal });
         }
-      } else data = await api('/api/chat', payload, { signal: controller.signal });
+      } else data = await api('/api/chat', payload, { signal: controller.signal, timeoutMs: 120000 });
       if (data.jobId) cancelSendBtn.classList.remove('hidden');
       data = await waitForReply(data, controller.signal, (id) => {
         jobId = id;

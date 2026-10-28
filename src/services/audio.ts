@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
 import { config } from '../config/config.js';
 import { UserFacingError, type ChatMessage } from './openrouter.js';
-import { ffmpegPath, ffprobePath } from './videos.js';
+import { ffmpegPath, ffprobePath } from './ffmpeg.js';
 
 export interface AudioUpload {
   id: string;
@@ -41,7 +41,13 @@ function storageRoot(): Promise<string> {
 }
 
 /** No shell, external protocols, playlists, or unbounded decoder output. */
-function run(binary: string, args: string[], signal: AbortSignal, limit = 1024 * 1024): Promise<Buffer> {
+function run(
+  binary: string,
+  args: string[],
+  signal: AbortSignal,
+  limit = 1024 * 1024,
+  timeoutMs: number = config.AUDIO_PROCESS_TIMEOUT_MS,
+): Promise<Buffer> {
   if (signal.aborted) return Promise.reject(new UserFacingError('Обработка аудио отменена.'));
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -53,7 +59,7 @@ function run(binary: string, args: string[], signal: AbortSignal, limit = 1024 *
     const timer = setTimeout(() => {
       timedOut = true;
       abort();
-    }, config.AUDIO_PROCESS_TIMEOUT_MS);
+    }, timeoutMs);
     signal.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', (chunk: Buffer) => {
       bytes += chunk.length;
@@ -87,7 +93,7 @@ function run(binary: string, args: string[], signal: AbortSignal, limit = 1024 *
 }
 
 export async function createAudio(owner: string, chatKey: string): Promise<AudioUpload> {
-  if (active >= config.AUDIO_MAX_CONCURRENT || uploads.size + active >= config.AUDIO_MAX_STORED) {
+  if (active >= config.AUDIO_MAX_CONCURRENT || uploads.size >= config.AUDIO_MAX_STORED) {
     throw new UserFacingError('Обработка аудио занята. Попробуйте чуть позже.');
   }
   active++;
@@ -158,6 +164,9 @@ async function prepare(audio: AudioUpload): Promise<void> {
   const source = path.join(audio.directory, 'source');
   const output = path.join(audio.directory, 'audio.mp3');
   const signal = audio.controller.signal;
+  // One overall deadline for probe + convert + verify + waveform.
+  const deadline = Date.now() + config.AUDIO_PROCESS_TIMEOUT_MS;
+  const remaining = () => Math.max(5000, deadline - Date.now());
   const metadata = JSON.parse(
     (
       await run(
@@ -173,6 +182,8 @@ async function prepare(audio: AudioUpload): Promise<void> {
           source,
         ],
         signal,
+        1024 * 1024,
+        remaining(),
       )
     ).toString(),
   ) as {
@@ -224,11 +235,19 @@ async function prepare(audio: AudioUpload): Promise<void> {
       output,
     ],
     signal,
+    1024 * 1024,
+    remaining(),
   );
   audio.bytes = (await fs.stat(output)).size;
   const converted = JSON.parse(
     (
-      await run(ffprobePath, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', output], signal)
+      await run(
+        ffprobePath,
+        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', output],
+        signal,
+        1024 * 1024,
+        remaining(),
+      )
     ).toString(),
   ) as { format?: { duration?: string } };
   audio.duration = Number(converted.format?.duration);
@@ -263,6 +282,7 @@ async function prepare(audio: AudioUpload): Promise<void> {
     ],
     signal,
     Math.ceil((config.AUDIO_MAX_DURATION_SECONDS + 1) * 16000),
+    remaining(),
   );
   const samples = Math.floor(pcm.length / 2);
   const peaks = Array.from({ length: 48 }, (_, bin) => {
@@ -294,7 +314,7 @@ export function receiveAudio(audio: AudioUpload, stream: Readable): Promise<void
       }
       audio.state = 'preparing';
       await prepare(audio);
-      if (!audio.controller.signal.aborted) audio.state = 'ready';
+      if (!audio.controller.signal.aborted && uploads.has(audio.id)) audio.state = 'ready';
     } catch (error) {
       if (uploads.has(audio.id)) {
         audio.state = 'failed';
@@ -328,7 +348,16 @@ export function pinAudio(audio: AudioUpload): () => void {
 
 export function clearChatAudio(chatKey: string, keep?: Set<string>): void {
   for (const audio of uploads.values()) {
-    if (audio.chatKey === chatKey && (!keep || (audio.committed && !keep.has(audio.id)))) void deleteAudio(audio);
+    if (audio.pins > 0) continue;
+    if (audio.chatKey !== chatKey) continue;
+    if (!keep) {
+      void deleteAudio(audio);
+      continue;
+    }
+    if (keep.has(audio.id)) continue;
+    if (audio.committed || (audio.state !== 'uploading' && audio.state !== 'preparing')) {
+      void deleteAudio(audio);
+    }
   }
 }
 
@@ -407,11 +436,13 @@ export async function resolveAudioMessages(messages: ChatMessage[], owner: strin
   );
 }
 
-setInterval(() => {
+const audioSweep = setInterval(() => {
   for (const audio of uploads.values()) if (!audio.pins && audio.expiresAt <= Date.now()) void deleteAudio(audio);
-}, 30000).unref();
+}, 30000);
+audioSweep.unref();
 
 export async function shutdownAudio(): Promise<void> {
+  clearInterval(audioSweep);
   await Promise.all([...uploads.values()].map(deleteAudio));
   await Promise.allSettled([...running]);
   if (root) await fs.rm(await root, { recursive: true, force: true }).catch(() => {});

@@ -11,7 +11,21 @@ function write(level: Level, args: unknown[]): void {
 
 function sanitize(meta: unknown): unknown {
   if (meta == null || typeof meta !== 'object') return meta;
-  const banned = ['token', 'apikey', 'api_key', 'authorization', 'OPENROUTER_API_KEY', 'TELEGRAM_BOT_TOKEN'];
+  const banned = [
+    'token',
+    'apikey',
+    'api_key',
+    'authorization',
+    'OPENROUTER_API_KEY',
+    'TELEGRAM_BOT_TOKEN',
+    'initdata',
+    'init_data',
+    'X-Telegram-Init-Data',
+    'hash',
+    'auth_date',
+    'clientid',
+    'X-Miniapp-Client-Id',
+  ];
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(meta as Record<string, unknown>)) {
     if (banned.some((b) => k.toLowerCase().includes(b.toLowerCase()))) {

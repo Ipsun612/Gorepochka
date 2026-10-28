@@ -9,7 +9,7 @@ export function isAllowedUser(userId: number): boolean {
 
 /** Trim, enforce max length, strip control chars (keep newlines/tabs). */
 export function sanitizeInput(raw: string): string {
-  const trimmed = raw.trim().slice(0, config.MAX_MESSAGE_LENGTH);
+  const trimmed = Array.from(raw.trim()).slice(0, config.MAX_MESSAGE_LENGTH).join('');
   // Remove C0/C1 control chars except \n, \r, \t.
   return trimmed.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '');
 }

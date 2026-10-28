@@ -24,13 +24,13 @@ export { MINIAPP_CHAT_SLOTS, miniAppChatKey, resolveChatSlot } from './chatSlots
 export function createServer(): express.Express {
   const app = express();
   app.disable('x-powered-by');
-  // Behind a single HTTPS tunnel hop (ngrok / cloudflared): makes req.secure
-  // correct so HSTS below is only set for TLS traffic.
-  app.set('trust proxy', 1);
+  // Trust the single HTTPS tunnel hop (ngrok / cloudflared) so req.secure is
+  // correct for HSTS. Without a public WEBAPP_URL there is no tunnel to trust.
+  app.set('trust proxy', config.WEBAPP_URL ? 1 : 0);
 
+  registerCors(app);
   registerBodyParser(app);
   registerSecurityHeaders(app);
-  registerCors(app);
 
   registerMetaRoutes(app);
   registerChatRoutes(app);
@@ -54,6 +54,12 @@ export function startServer(): void {
   const port = config.PORT;
   app.listen(port, config.BIND_HOST, () => {
     log.info(`🌐 Mini App server listening on http://${config.BIND_HOST}:${port}`);
+    if (config.BIND_HOST !== '127.0.0.1' && config.BIND_HOST !== 'localhost') {
+      log.warn(
+        'BIND_HOST is not loopback — ensure a firewall/reverse proxy guards this port; ' +
+          'public traffic should arrive only via the HTTPS tunnel.',
+      );
+    }
     if (config.WEBAPP_URL) {
       log.info(`🔗 Public Mini App URL: ${config.WEBAPP_URL}`);
     } else {

@@ -9,11 +9,21 @@
 - Mini App auth: `initData.hash` must be a 64-char hex HMAC-SHA256, timing-safe
   compared; `auth_date` must be within one hour (up to 60 seconds of future clock
   skew); forged data → `401`. Reopen the Mini App when credentials expire.
+  `ANON_MODE=on` (local dev only) fails startup when combined with a public
+  `WEBAPP_URL`, so anonymous billing cannot be exposed publicly by accident.
+  Large `/api/chat` JSON bodies require Telegram/client auth headers before the
+  server allocates the attachment-sized buffer; headerless oversized bodies get
+  `413` without megabyte allocation. Auth travels in headers only
+  (`X-Telegram-Init-Data` / `X-Miniapp-Client-Id`); request bodies never carry
+  bearer credentials. The open bot-avatar endpoint has its own per-IP budget.
 - Optional allowlist: set `ALLOWED_USER_IDS=123,456` to make the bot + Mini App private.
   In allowlist mode, all anonymous API access (including metadata) is blocked.
 - Input is trimmed, length-capped (`MAX_MESSAGE_LENGTH`), control chars stripped.
 - Per-user sliding-window rate limiter (`RATE_LIMIT_WINDOW_MS` /
-  `RATE_LIMIT_MAX_REQUESTS`) shared by bot chat and Mini App.
+  `RATE_LIMIT_MAX_REQUESTS`) shared by bot chat and Mini App. Chat jobs are
+  idempotent by `(owner, requestId)`, stuck `analyzing` jobs are aborted after
+  10 minutes, and clearing a chat bumps its generation so in-flight replies
+  cannot resurrect deleted history; pinned media is never deleted mid-job.
 - `AbortController` timeout on every OpenRouter call (`OPENROUTER_TIMEOUT_MS`).
 - Long classic-chat AI replies are split to respect Telegram's 4096-char limit (the
   Mini App returns the full reply).
@@ -36,7 +46,9 @@ Image and text-file uploads are treated as untrusted:
 - Text files: the client MIME type is only a hint, the size is capped
   (`MAX_FILE_BYTES`) *before* decoding, the bytes must decode as UTF-8 text (NUL bytes /
   mostly-binary content is rejected), control characters are stripped and the injected
-  text is capped at `FILE_MAX_CHARS`. The filename is sanitized to a basename. File
+  text is capped at `FILE_MAX_CHARS`. The filename is sanitized to a basename. Bracket
+  sequences that could forge `[Attached file: …]` delimiters inside file text are
+  escaped, so only the outer header/footer delimit the block. File
   content is only ever placed in the model prompt — never executed or written to disk.
 - Video uploads authenticate **before** streaming, have byte/duration/pixel/time and
   concurrency/storage caps, and use random private temporary directories. FFmpeg runs

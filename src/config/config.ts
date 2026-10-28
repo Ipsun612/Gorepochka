@@ -5,7 +5,12 @@ const IntFromString = (fallback: number) =>
   z
     .string()
     .optional()
-    .transform((v) => (v === undefined || v === '' ? fallback : Number(v)))
+    .transform((v) => {
+      if (v === undefined || v === '') return fallback;
+      const trimmed = v.trim();
+      if (!/^\d+$/.test(trimmed)) return Number.NaN;
+      return Number(trimmed);
+    })
     .pipe(z.number().int().positive());
 
 const FloatFromString = (fallback: number) =>
@@ -44,14 +49,32 @@ const envSchema = z
       .string()
       .optional()
       .default('')
-      .transform((v) =>
-        v
+      .transform((v, ctx) => {
+        const tokens = v
           .split(',')
           .map((s) => s.trim())
-          .filter(Boolean)
-          .map(Number)
-          .filter((n) => Number.isSafeInteger(n)),
-      ),
+          .filter(Boolean);
+        const ids: number[] = [];
+        for (const token of tokens) {
+          if (!/^\d+$/.test(token)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Invalid ALLOWED_USER_IDS entry "${token}" (expected a numeric Telegram user ID)`,
+            });
+            return z.NEVER;
+          }
+          const n = Number(token);
+          if (!Number.isSafeInteger(n)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Invalid ALLOWED_USER_IDS entry "${token}" (not a safe integer)`,
+            });
+            return z.NEVER;
+          }
+          ids.push(n);
+        }
+        return ids;
+      }),
 
     MAX_HISTORY_MESSAGES: IntFromString(35),
     MAX_MESSAGE_LENGTH: IntFromString(4000),
@@ -145,6 +168,13 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ['AI_TYPING_MIN_DELAY_MS'],
         message: 'Must not exceed AI_TYPING_MAX_DELAY_MS',
+      });
+    }
+    if (env.ANON_MODE === 'on' && env.WEBAPP_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ANON_MODE'],
+        message: 'ANON_MODE=on must not be combined with a public WEBAPP_URL (unauthenticated OpenRouter billing).',
       });
     }
   });

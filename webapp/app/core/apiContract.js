@@ -31,10 +31,9 @@
  * @typedef {ChatTextPart|ChatImagePart|ChatVideoRef|ChatAudioRef} ChatContentPart
  *
  * @typedef {object} ChatPayload — `POST /api/chat` body (see `core/api.js` `chatPayload`)
+ * Auth travels in headers only (`X-Telegram-Init-Data` / `X-Miniapp-Client-Id`).
  * @property {string} [message]
  * @property {number} [chatId] — 1..5, default 1 (see `chat/chatState.js`)
- * @property {string} [initData] — Telegram WebApp init data (auth)
- * @property {string} [clientId]
  * @property {string} [image] — image data URL
  * @property {string} [file] — text-file data URL
  * @property {string} [fileName]

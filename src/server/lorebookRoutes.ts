@@ -1,39 +1,27 @@
 import type express from 'express';
-import { resolveIdentity } from './requestIdentity.js';
+import { identityRateLimit } from './middleware/identityRateLimit.js';
 import { describeLorebook, saveLorebook } from '../services/lorebook/index.js';
 import { lorebookUpdateSchema } from '../services/lorebook/types.js';
 import { ProfileConflict } from '../services/profile/types.js';
 import { log } from '../utils/logger.js';
 
-const hits = new Map<string, { count: number; until: number }>();
 export function registerLorebookRoutes(app: express.Express): void {
-  app.use('/api/lorebook', (req, res, next) => {
-    res.setHeader('Cache-Control', 'private, no-store');
-    const identity = resolveIdentity(req, true, res);
-    if (!identity) return;
-    const now = Date.now();
-    const previous = hits.get(identity.historyKey);
-    const current = previous && previous.until > now ? previous : { count: 0, until: now + 60000 };
-    current.count++;
-    hits.delete(identity.historyKey);
-    hits.set(identity.historyKey, current);
-    while (hits.size > 10000) hits.delete(hits.keys().next().value!);
-    if (current.count > 60) {
-      res.status(429).json({ ok: false, error: 'Слишком много запросов лорбука. Подождите минуту.' });
-      return;
-    }
-    res.locals.lorebookIdentity = identity;
-    next();
-  });
-  const failure = (res: express.Response) => {
-    log.error('Lorebook operation failed');
+  app.use(
+    '/api/lorebook',
+    identityRateLimit({
+      localsKey: 'lorebookIdentity',
+      message: 'Слишком много запросов лорбука. Подождите минуту.',
+    }),
+  );
+  const failure = (res: express.Response, err: unknown) => {
+    log.error({ err: err instanceof Error ? err.message : String(err) }, 'Lorebook operation failed');
     res.status(503).json({ ok: false, error: 'Не удалось прочитать или сохранить лорбук. Попробуйте ещё раз.' });
   };
   app.get('/api/lorebook', (_req, res) => {
     try {
       res.json(describeLorebook(res.locals.lorebookIdentity));
-    } catch {
-      failure(res);
+    } catch (err) {
+      failure(res, err);
     }
   });
   app.post('/api/lorebook', (req, res) => {
@@ -56,7 +44,7 @@ export function registerLorebookRoutes(app: express.Express): void {
           code: 'LOREBOOK_CONFLICT',
           error: 'Лорбук изменён на другом устройстве. Загрузите актуальную версию перед сохранением.',
         });
-      else failure(res);
+      else failure(res, error);
     }
   });
 }

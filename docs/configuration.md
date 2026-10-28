@@ -51,7 +51,7 @@ budget. The bundled prompt files fit the default budget without partial instruct
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ALLOWED_USER_IDS` | _(empty = public)_ | Comma-separated Telegram user IDs allowed to use the bot + Mini App. |
+| `ALLOWED_USER_IDS` | _(empty = public)_ | Comma-separated Telegram user IDs allowed to use the bot + Mini App. Entries must be numeric IDs — a typo fails startup instead of silently opening the bot. |
 | `MAX_HISTORY_MESSAGES` | `35` | Per-chat history depth kept for the model (70 entries per slot, durable in SQLite and shared across devices). |
 | `MAX_MESSAGE_LENGTH` | `4000` | Maximum input length (characters). |
 | `RATE_LIMIT_WINDOW_MS` | `10000` | Sliding-window size for the per-user rate limiter. |
@@ -65,7 +65,7 @@ budget. The bundled prompt files fit the default budget without partial instruct
 | `WEBAPP_DIR` | `webapp` | Static directory served at `/`. |
 | `PORT` | `3000` | Port for the Mini App + API server. |
 | `BIND_HOST` | `127.0.0.1` | Interface the server binds to. Keep loopback; public traffic should arrive only via the HTTPS tunnel. |
-| `ANON_MODE` | `off` | `on` allows unauthenticated `/api` access for local browser development, using your OpenRouter key. Dev tool only — never enable with a public `WEBAPP_URL`. |
+| `ANON_MODE` | `off` | `on` allows unauthenticated `/api` access for local browser development, using your OpenRouter key. Dev tool only — startup fails when combined with a public `WEBAPP_URL`. |
 
 ## Reply delivery (typing pauses)
 

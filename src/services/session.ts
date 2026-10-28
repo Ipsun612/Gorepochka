@@ -3,6 +3,7 @@ import type { ChatMessage } from './openrouter.js';
 import { getSystemPrompt } from './prompts.js';
 import { clearChatVideos } from './videos.js';
 import { clearChatAudio } from './audio.js';
+import { limitImagesForModel } from './images.js';
 import { PROFILE_CONTEXT_INSTRUCTIONS } from './profile/context.js';
 import { characterInstructions } from './character/definition.js';
 import { withLorebookContext, type LorebookContext } from './lorebook/context.js';
@@ -26,6 +27,17 @@ const MAX_CHATS = 10_000;
 
 const histories = new Map<string, ChatMessage[]>();
 const historyIds = new Map<string, StoredHistoryMessage[]>();
+
+// Generation guard: /api/new bumps the generation so an in-flight /api/chat
+// (direct path has no AbortController) never resurrects cleared history.
+const generations = new Map<string, number>();
+export function chatGeneration(chatId: string): number {
+  return generations.get(chatId) ?? 0;
+}
+export function bumpChatGeneration(chatId: string): void {
+  generations.set(chatId, chatGeneration(chatId) + 1);
+  while (generations.size > MAX_CHATS) generations.delete(generations.keys().next().value!);
+}
 
 function parseChatKey(chatId: string): { userId: number | null; slot: number } {
   const hash = chatId.lastIndexOf('#c');
@@ -126,21 +138,18 @@ export function appendHistory(
   msg: ChatMessage,
   existing?: { userReaction?: string | null; botReaction?: string | null },
 ): StoredHistoryMessage | null {
-  // Mutate the cached array in place: smoke tests hold live references.
+  const { userId, slot } = parseChatKey(chatId);
+  // Resolve the cached array first (cold load reads pre-insert rows), persist,
+  // then mutate: if SQLite fails, memory is left untouched so the cache and
+  // the database cannot permanently diverge.
   const history = histories.get(chatId) ?? getHistory(chatId);
   if (!histories.has(chatId)) histories.set(chatId, history);
-  history.push(msg);
-  // Keep system prompt out of stored history; cap length (pairs of user+assistant).
-  const cap = config.MAX_HISTORY_MESSAGES * 2;
-  while (history.length > cap) history.shift();
-  touch(chatId);
-  const { userId, slot } = parseChatKey(chatId);
   let stored: StoredHistoryMessage | null = null;
   if (userId !== null) {
     try {
-      stored = appendHistoryRow(profileStore().getDb(), userId, slot, msg, cap, existing);
+      stored = appendHistoryRow(profileStore().getDb(), userId, slot, msg, config.MAX_HISTORY_MESSAGES * 2, existing);
     } catch {
-      stored = null;
+      return null;
     }
   } else if (slot !== 0) {
     stored = {
@@ -152,6 +161,13 @@ export function appendHistory(
       botReaction: existing?.botReaction ?? null,
     };
   }
+  // Mutate the cached array in place: smoke tests hold live references.
+  history.push(msg);
+  // Keep system prompt out of stored history; cap length (pairs of user+assistant).
+  const cap = config.MAX_HISTORY_MESSAGES * 2;
+  while (history.length > cap) history.shift();
+  pruneMemoryImages(history);
+  touch(chatId);
   if (stored) {
     const ids = [...(historyIds.get(chatId) ?? []), stored].slice(-cap);
     historyIds.set(chatId, ids);
@@ -195,6 +211,7 @@ export function appendHistory(
 }
 
 export function clearHistory(chatId: string): void {
+  bumpChatGeneration(chatId);
   histories.delete(chatId);
   historyIds.delete(chatId);
   const { userId, slot } = parseChatKey(chatId);
@@ -217,6 +234,7 @@ export function clearAllVerifiedHistory(userId: number): void {
   }
   for (const key of [...histories.keys()]) {
     if (key === String(userId) || key.startsWith(`${userId}#c`)) {
+      bumpChatGeneration(key);
       histories.delete(key);
       historyIds.delete(key);
       clearChatVideos(key);
@@ -224,6 +242,40 @@ export function clearAllVerifiedHistory(userId: number): void {
     }
   }
 }
+
+const MEMORY_IMAGE_TURNS = 5;
+const OMITTED_MEMORY_IMAGE = '[Older image omitted to respect the media context size limit.]';
+function pruneMemoryImages(history: ChatMessage[]): void {
+  let seen = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const content = history[i]?.content;
+    if (!Array.isArray(content)) continue;
+    const hasImage = (content as Array<{ type?: string }>).some((part) => part?.type === 'image_url');
+    if (!hasImage) continue;
+    seen += 1;
+    if (seen <= MEMORY_IMAGE_TURNS) continue;
+    history[i] = {
+      ...history[i]!,
+      content: (content as Array<{ type?: string; text?: string }>).map((part) =>
+        part?.type === 'image_url' ? { type: 'text', text: OMITTED_MEMORY_IMAGE } : part,
+      ) as ChatMessage['content'],
+    };
+  }
+}
+function textChars(content: ChatMessage['content']): number {
+  if (typeof content === 'string') return Array.from(content).length;
+  if (!Array.isArray(content)) return 0;
+  let total = 0;
+  for (const part of content as Array<{ type?: string; text?: string }>) {
+    if (part?.type === 'text' && typeof part.text === 'string') total += Array.from(part.text).length;
+  }
+  return total;
+}
+
+// Text budget for one model call (system + recent history + profile + current).
+// Media bytes have their own budgets; this caps runaway text/file/lore growth
+// so a full 35-pair history can never blow the provider context.
+const MAX_MODEL_TEXT_CHARS = 90000;
 
 export function buildMessages(
   chatId: string,
@@ -233,21 +285,39 @@ export function buildMessages(
   currentContent?: ChatMessage['content'],
 ): ChatMessage[] {
   touch(chatId);
-  return [
-    {
-      role: 'system',
-      content:
-        getSystemPrompt() +
-        characterContext +
-        (profileContext ? `\n\n${PROFILE_CONTEXT_INSTRUCTIONS}` : '') +
-        (lorebook?.system ?? ''),
-    },
-    ...getHistory(chatId),
-    ...(profileContext ? [profileContext] : []),
-    ...(currentContent === undefined
+  const system: ChatMessage = {
+    role: 'system',
+    content:
+      getSystemPrompt() +
+      characterContext +
+      (profileContext ? `\n\n${PROFILE_CONTEXT_INSTRUCTIONS}` : '') +
+      (lorebook?.system ?? ''),
+  };
+  const current: ChatMessage[] =
+    currentContent === undefined
       ? []
-      : [{ role: 'user' as const, content: withLorebookContext(currentContent, lorebook) }]),
-  ];
+      : [{ role: 'user' as const, content: withLorebookContext(currentContent, lorebook) }];
+  const profile: ChatMessage[] = profileContext ? [profileContext] : [];
+  const fixedChars =
+    textChars(system.content) +
+    profile.reduce((n, m) => n + textChars(m.content), 0) +
+    current.reduce((n, m) => n + textChars(m.content), 0);
+  let budget = MAX_MODEL_TEXT_CHARS - fixedChars;
+  const fullHistory = getHistory(chatId);
+  let start = 0;
+  if (budget < 0) budget = 0;
+  let used = 0;
+  const kept: ChatMessage[] = [];
+  for (let i = fullHistory.length - 1; i >= 0; i--) {
+    const turn = fullHistory[i]!;
+    const chars = textChars(turn.content);
+    if (kept.length > 0 && used + chars > budget) break;
+    kept.unshift(turn);
+    used += chars;
+    start = i;
+  }
+  void start;
+  return limitImagesForModel([system, ...kept, ...profile, ...current]);
 }
 
 // --- Simple sliding-window rate limiter (per Telegram user) ---
@@ -266,7 +336,7 @@ export function isRateLimited(userId: string): boolean {
 }
 
 // Periodic cleanup so the maps don't grow forever.
-setInterval(() => {
+const hitsSweep = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of hits) {
     const fresh = v.filter((t) => now - t < config.RATE_LIMIT_WINDOW_MS);
@@ -279,4 +349,10 @@ setInterval(() => {
     if (firstKey === undefined) break;
     hits.delete(firstKey);
   }
-}, 60_000).unref();
+}, 60_000);
+hitsSweep.unref();
+
+/** Stop the background rate-limiter sweep (tests / shutdown). */
+export function stopSessionSweep(): void {
+  clearInterval(hitsSweep);
+}

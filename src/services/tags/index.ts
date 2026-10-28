@@ -24,6 +24,9 @@ export interface ProcessedAssistantReply {
 }
 
 export function processAssistantReply(raw: string): ProcessedAssistantReply {
+  // Cap fan-out: a malicious/compromised model must not turn one reply into an
+  // unbounded typing-delay chain in the Mini App.
+  const MAX_PARTS = 10;
   const parts: string[] = [];
   let current: string[] = [];
   let userReaction: string | null = null;
@@ -52,9 +55,10 @@ export function processAssistantReply(raw: string): ProcessedAssistantReply {
   }
   flush();
 
+  const capped = parts.slice(0, MAX_PARTS);
   return {
-    reply: parts.join('\n\n'),
-    messages: parts.map((text, index) => ({ text, delayMs: index === 0 ? 0 : getTypingDelayMs(text) })),
+    reply: capped.join('\n\n'),
+    messages: capped.map((text, index) => ({ text, delayMs: index === 0 ? 0 : getTypingDelayMs(text) })),
     userReaction,
   };
 }

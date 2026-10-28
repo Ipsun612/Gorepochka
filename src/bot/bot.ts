@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import path from 'node:path';
-import { Markup, Telegraf } from 'telegraf';
+import { Markup, Telegraf, type Context } from 'telegraf';
+import type { MenuButtonWebApp } from '@telegraf/types';
 import { config } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { isRateLimited } from '../services/session.js';
@@ -66,12 +67,7 @@ function unconfiguredText(): string {
   );
 }
 
-interface ReplyTarget {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reply: (...args: any[]) => Promise<unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  replyWithPhoto?: (...args: any[]) => Promise<unknown>;
-}
+type ReplyTarget = Pick<Context, 'reply'> & Partial<Pick<Context, 'replyWithPhoto'>>;
 
 async function sendOpenPrompt(ctx: ReplyTarget): Promise<void> {
   const kb = miniAppKeyboard();
@@ -189,15 +185,12 @@ export function createBot(): Telegraf {
 export async function setupMiniAppMenu(bot: Telegraf): Promise<void> {
   if (!config.WEBAPP_URL) return;
   try {
-    await bot.telegram.setChatMenuButton({
-      menuButton: {
-        // Telegraf types lag behind Bot API here; the shape below is what
-        // Telegram expects for a WebApp menu button.
-        type: 'web_app',
-        text: 'Открыть приложение',
-        web_app: { url: config.WEBAPP_URL },
-      } as never,
-    });
+    const menuButton: MenuButtonWebApp = {
+      type: 'web_app',
+      text: 'Открыть приложение',
+      web_app: { url: config.WEBAPP_URL },
+    };
+    await bot.telegram.setChatMenuButton({ menuButton });
     log.info('📌 Menu button points to the Mini App');
   } catch (err) {
     log.warn({ err }, 'Could not set Menu Button (is WEBAPP_URL public HTTPS?)');

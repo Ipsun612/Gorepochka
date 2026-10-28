@@ -2,7 +2,7 @@ import type { RequestIdentity } from '../../server/requestIdentity.js';
 import { config } from '../../config/config.js';
 import type { ChatMessage } from '../openrouter.js';
 import { profileStore } from '../profile/store.js';
-import { appendHistoryRow, clearAllHistory, clearHistorySlot, listHistoryRows, setMessageReaction } from './store.js';
+import { appendHistoryRow, clearAllHistory, clearHistorySlot, listHistoryRows } from './store.js';
 import { clearHistory, getStoredHistory, updateStoredReaction } from '../session.js';
 import type { StoredHistoryMessage } from './types.js';
 
@@ -55,6 +55,7 @@ export function saveMessageReaction(
   which: 'userReaction' | 'botReaction',
   reaction: string | null,
 ): StoredHistoryMessage | null {
-  if (!identity.verified) return updateStoredReaction(chatKeyFor(identity, slot), messageId, which, reaction);
-  return setMessageReaction(profileStore().getDb(), identity.userId, slot, messageId, which, reaction);
+  // Single writer through the session cache so the in-memory historyIds view
+  // never goes stale behind direct SQLite writes.
+  return updateStoredReaction(chatKeyFor(identity, slot), messageId, which, reaction);
 }

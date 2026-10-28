@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { config } from '../config/config.js';
 import { log } from '../utils/logger.js';
-import { UserFacingError } from './openrouter.js';
+import { UserFacingError, type ChatMessage } from './openrouter.js';
 
 // ---------------------------------------------------------------------------
 // Image attachments
@@ -107,4 +107,54 @@ export async function convertToJpeg(input: Buffer): Promise<ConvertedImage> {
     if (err instanceof UserFacingError) throw err;
     throw new UserFacingError('Could not read that image. Try a JPEG, PNG, WebP, GIF, TIFF, HEIC/AVIF or SVG file.');
   }
+}
+
+// --- Image history budget (P0: bound memory + model payloads) ---
+// History keeps full data URLs; without a cap one chat can pin tens of MB in
+// RAM/SQLite and blow the OpenRouter request. Keep only the most recent images
+// for the model; older ones become a placeholder (display layer keeps hasImage).
+export const MAX_IMAGE_HISTORY_BYTES = 4 * 1024 * 1024;
+export const MAX_IMAGE_HISTORY_COUNT = 5;
+const OMITTED_IMAGE_TEXT = '[Older image omitted to respect the media context size limit.]';
+
+function imageBytes(part: { image_url?: { url?: string } }): number {
+  const url = part.image_url?.url;
+  if (typeof url !== 'string' || !url.startsWith('data:image/')) return 0;
+  const comma = url.indexOf(',');
+  const base64 = comma >= 0 ? url.slice(comma + 1) : url;
+  return Math.floor(base64.length * 0.75);
+}
+
+/** Copy messages for the model, keeping only recent images within budget. */
+export function limitImagesForModel(messages: ChatMessage[]): ChatMessage[] {
+  let remainingBytes = MAX_IMAGE_HISTORY_BYTES;
+  let remainingCount = MAX_IMAGE_HISTORY_COUNT;
+  const keep = new Set<string>();
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i]?.content;
+    if (typeof content === 'string' || !Array.isArray(content)) continue;
+    for (let j = content.length - 1; j >= 0; j--) {
+      const part = content[j] as { type?: string; image_url?: { url?: string } };
+      if (part?.type !== 'image_url') continue;
+      const bytes = imageBytes(part);
+      const key = `${i}:${j}:${bytes}`;
+      if (bytes <= remainingBytes && remainingCount > 0) {
+        remainingBytes -= bytes;
+        remainingCount -= 1;
+        keep.add(key);
+      }
+    }
+  }
+  return messages.map((message, i) => {
+    if (typeof message.content === 'string' || !Array.isArray(message.content)) return message;
+    let changed = false;
+    const content = message.content.map((part, j) => {
+      if ((part as { type?: string }).type !== 'image_url') return part;
+      const bytes = imageBytes(part as { image_url?: { url?: string } });
+      if (keep.has(`${i}:${j}:${bytes}`)) return part;
+      changed = true;
+      return { type: 'text' as const, text: OMITTED_IMAGE_TEXT };
+    });
+    return changed ? { ...message, content } : message;
+  });
 }

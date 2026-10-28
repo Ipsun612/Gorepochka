@@ -121,7 +121,7 @@ try {
   const anonChat = await fetch(`${base}/api/chat`, {
     method: 'POST',
     headers: { ...anonHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId: 1, message: 'anon hi', clientId: 'web-history-12345678' }),
+    body: JSON.stringify({ chatId: 1, message: 'anon hi' }),
   }).then(async (r) => ({ status: r.status, data: await r.json().catch(() => null) }));
   assert.equal(anonChat.status, 200);
   const anonHistory = await fetch(`${base}/api/chat/history?chatId=1`, { headers: anonHeaders }).then(async (r) => ({

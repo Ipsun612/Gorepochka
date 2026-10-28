@@ -101,14 +101,23 @@ export function decodeTextFile(input: Buffer): DecodedTextFile {
 export function sanitizeFileName(raw: unknown): string {
   if (typeof raw !== 'string') return 'file';
   const base = raw.split(/[\\/]/).pop() ?? 'file';
-  const clean = base.replace(/[\u0000-\u001F\u007F]/g, '').trim();
+  const clean = base
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/[[\]]/g, '')
+    .trim();
   return clean.slice(0, 120) || 'file';
+}
+
+/** Escape inner marker-like lines so only the outer header/footer delimit the block. */
+function escapeFileText(text: string): string {
+  return text.split('[Attached file:').join('[Attached file :').split('[/Attached file:').join('[/Attached file :');
 }
 
 /** Wrap decoded file text in clear delimiters so the model can tell it apart. */
 export function formatFileBlock(name: string, file: DecodedTextFile): string {
+  const safeName = name.replace(/[[\]]/g, '');
   const header = file.truncated
-    ? `[Attached file: ${name} — truncated to ${config.FILE_MAX_CHARS} characters]`
-    : `[Attached file: ${name}]`;
-  return `${header}\n${file.text}\n[/Attached file: ${name}]`;
+    ? `[Attached file: ${safeName} — truncated to ${config.FILE_MAX_CHARS} characters]`
+    : `[Attached file: ${safeName}]`;
+  return `${header}\n${escapeFileText(file.text)}\n[/Attached file: ${safeName}]`;
 }
